@@ -426,7 +426,7 @@ async function handleAuth() {
         const { data, error } = await _supabase.from('atletas').insert([{ 
             nick, pass, email: document.getElementById('reg-email').value, 
             pos: document.getElementById('reg-pos-init').value, 
-            city: "Brasil", team: "Livre", photo: "", stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {} 
+            city: "Brasil", team: "Livre", photo: "", stats: {ATA:50,LEV:50,BLO:50,DEF:50,PAS:50,SAQ:50}, ratings: {} 
         }]).select();
         
         if(error) return alert("Erro no sistema: " + error.message);
@@ -511,21 +511,25 @@ function displayCard(u) {
         let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 50;
         let avgStars = 0;
 
-        // NOVO CÁLCULO: Se houver avaliações no novo formato { "nick": nota }
-        if (u.ratings && u.ratings[k]) {
-            const votosArray = Object.values(u.ratings[k]); // Pega as notas [100, 80, ...]
+        // Verifica se existem votos no novo formato { "nick": nota }
+        if (u.ratings && u.ratings[k] && typeof u.ratings[k] === 'object') {
+            const votosArray = Object.values(u.ratings[k]);
+            
             if (votosArray.length > 0) {
-                const mediaComunidade = votosArray.reduce((a, b) => a + b, 0) / votosArray.length;
+                const somaComunidade = votosArray.reduce((acc, nota) => acc + nota, 0);
+                const mediaComunidade = somaComunidade / votosArray.length;
+                
+                // Média final: (Base + Média da Comunidade) / 2
                 baseVal = Math.round((baseVal + mediaComunidade) / 2);
                 avgStars = Math.round(mediaComunidade / 20);
             }
         }
         
         baseVal = Math.max(1, Math.min(100, baseVal));
-        sum += baseVal; vals.push(baseVal); 
+        sum += baseVal; 
         vals.push(baseVal);
         
-        // Cores e HTML (Mantendo seu estilo)
+        // Cores e HTML
         const dynamicColor = getDynamicColor(baseVal);
         let starsHtml = isOwner ? '' : '<div class="stars-container">';
         if(!isOwner) {
