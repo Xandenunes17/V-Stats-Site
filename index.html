@@ -513,24 +513,16 @@ function displayCard(u) {
 
         // NOVO CÁLCULO: Se houver avaliações no novo formato { "nick": nota }
         if (u.ratings && u.ratings[k]) {
-            const votosArray = Object.values(u.ratings[k]); // Extrai apenas os números (notas)
-            
+            const votosArray = Object.values(u.ratings[k]); // Pega as notas [100, 80, ...]
             if (votosArray.length > 0) {
-                // Soma todas as notas e divide pela quantidade de pessoas que votaram
-                const somaComunidade = votosArray.reduce((acc, nota) => acc + nota, 0);
-                const mediaComunidade = somaComunidade / votosArray.length;
-                
-                // Calcula a média final: (Base do Atleta + Média da Comunidade) / 2
+                const mediaComunidade = votosArray.reduce((a, b) => a + b, 0) / votosArray.length;
                 baseVal = Math.round((baseVal + mediaComunidade) / 2);
-                
-                // Define as estrelas visuais (1 a 5) baseada na média da comunidade
                 avgStars = Math.round(mediaComunidade / 20);
             }
         }
         
-        // Garante que o valor final respeite o limite de 1 a 100
         baseVal = Math.max(1, Math.min(100, baseVal));
-        sum += baseVal; 
+        sum += baseVal; vals.push(baseVal); 
         vals.push(baseVal);
         
         // Cores e HTML (Mantendo seu estilo)
@@ -579,12 +571,18 @@ async function renderSearch() {
     const list = document.getElementById('athlete-list'); list.innerHTML = '';
     
     data?.forEach(u => {
-let sum = 0; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+        let sum = 0; 
+        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
             let val = u.stats[k] || 50;
-            if(u.ratings?.[k]) val = (val + (u.ratings[k].total/u.ratings[k].count))/2;
+            if(u.ratings && u.ratings[k]) {
+                const votos = Object.values(u.ratings[k]);
+                if(votos.length > 0) {
+                    val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length)) / 2;
+                }
+            }
             sum += Math.max(1, Math.min(100, val));
         });
-        const ovr = Math.max(1, Math.min(100, Math.round(sum/6)));
+        const ovr = Math.round(sum/6);
         const ovrColor = getDynamicColor(ovr);
         const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
         
@@ -612,13 +610,20 @@ async function renderRanking() {
     if(!data) return;
 
 const list = data.map(u => {
-        let sum = 0; const s = {}; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+        let sum = 0; const s = {}; 
+        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
             let val = u.stats[k] || 50; 
-            if(u.ratings?.[k]) val = Math.round((val + (u.ratings[k].total/u.ratings[k].count))/2);
+            if(u.ratings && u.ratings[k]) {
+                const votos = Object.values(u.ratings[k]);
+                if(votos.length > 0) {
+                    val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length)) / 2;
+                }
+            }
             val = Math.max(1, Math.min(100, val));
             s[k] = val; sum += val;
         });
-        s.OVR = Math.max(1, Math.min(100, Math.round(sum/6))); return {...u, s};
+        s.OVR = Math.round(sum/6); 
+        return {...u, s};
     }).sort((a,b) => b.s[stat] - a.s[stat]);
 
     const listEl = document.getElementById('ranking-list'); listEl.innerHTML = '';
