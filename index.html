@@ -31,9 +31,10 @@ input { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border
 }
 .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--black); }
 
+/* ESTRELAS COM ESTADO ACESO */
 .stars-container { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
-.star-btn { cursor: pointer; font-size: 18px; color: #ccc; }
-.star-btn:hover { color: var(--green); }
+.star-btn { cursor: pointer; font-size: 18px; color: #ccc; transition: color 0.2s; }
+.star-btn.active { color: var(--green); text-shadow: 0 0 5px rgba(185, 255, 102, 0.5); }
 
 .card-container { max-width: 600px; margin: 20px auto; padding: 15px; }
 .player-card { border: var(--border); border-radius: 25px; background: var(--white); box-shadow: 10px 10px 0px var(--black); overflow: hidden; }
@@ -107,7 +108,6 @@ input { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border
 </div>
 
 <script>
-// --- CONFIGURAÇÃO ATUALIZADA ---
 const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co'; 
 const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
@@ -133,18 +133,13 @@ function toggleAuthMode() {
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
-
     if(!nick || !pass) return alert("Preencha tudo!");
 
     if(isRegisterMode) {
         const { error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, 
-            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, 
-            ratings: {}, 
-            onboarded: true, city: "Brasil", team: "Livre", pos: "Atleta"
+            nick, pass, stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {}, onboarded: true, city: "Brasil", team: "Livre", pos: "Atleta"
         }]);
         if(error) return alert("Erro ou apelido já existe.");
-        alert("Conta criada!");
         login(nick, pass);
     } else {
         login(nick, pass);
@@ -152,7 +147,7 @@ async function handleAuth() {
 }
 
 async function login(nick, pass) {
-    const { data, error } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
+    const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
     if(data && data.pass === pass) {
         currentUserData = data;
         enterApp();
@@ -163,10 +158,8 @@ async function login(nick, pass) {
 
 async function renderSearch() {
     const q = document.getElementById('search-input').value.toLowerCase();
+    const { data } = await _supabase.from('atletas').select('*').ilike('nick', `%${q}%`).limit(10);
     const listEl = document.getElementById('athlete-list');
-    let query = _supabase.from('atletas').select('*');
-    if(q) query = query.ilike('nick', `%${q}%`);
-    const { data } = await query.limit(10);
     listEl.innerHTML = '';
     data?.forEach(u => {
         listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos}</small></div><span>➜</span></div>`;
@@ -185,11 +178,17 @@ async function loadOther(nick) {
 
 async function rateStat(statKey, stars) {
     if(viewedUserData.nick === currentUserData.nick) return;
+    
     let ratings = viewedUserData.ratings || {};
     if(!ratings[statKey]) ratings[statKey] = { total: 0, count: 0 };
+    
     ratings[statKey].total += (stars * 20);
     ratings[statKey].count += 1;
+
+    // Atualiza no banco
     await _supabase.from('atletas').update({ ratings }).eq('nick', viewedUserData.nick);
+    
+    // Atualiza localmente para ver o efeito imediato
     const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
     displayCard(data);
 }
@@ -208,22 +207,30 @@ function displayCard(u) {
     const values = [];
 
     keys.forEach(k => {
-        let val = u.stats[k] || 60;
+        let baseVal = u.stats[k] || 60;
+        let avgRatingStars = 0;
+
         if(u.ratings && u.ratings[k]) {
-            const avg = u.ratings[k].total / u.ratings[k].count;
-            val = Math.round((val + avg) / 2);
+            const avgPoints = u.ratings[k].total / u.ratings[k].count;
+            avgRatingStars = Math.round(avgPoints / 20); // Transforma pontos em estrelas (1-5)
+            baseVal = Math.round((baseVal + avgPoints) / 2);
         }
-        sum += val;
-        values.push(val);
+        
+        sum += baseVal;
+        values.push(baseVal);
 
         let starHtml = '';
         if(!isOwner) {
             starHtml = `<div class="stars-container">`;
-            for(let i=1; i<=5; i++) starHtml += `<span class="star-btn" onclick="rateStat('${k}', ${i})">★</span>`;
+            for(let i=1; i<=5; i++) {
+                // Se a estrela i for menor ou igual à média, ela fica "active"
+                const activeClass = i <= avgRatingStars ? 'active' : '';
+                starHtml += `<span class="star-btn ${activeClass}" onclick="rateStat('${k}', ${i})">★</span>`;
+            }
             starHtml += `</div>`;
         }
 
-        grid.innerHTML += `<div class="stat-box"><span class="stat-name">${k}</span><span class="stat-num">${val}</span>${starHtml}</div>`;
+        grid.innerHTML += `<div class="stat-box"><span class="stat-name">${k}</span><span class="stat-num">${baseVal}</span>${starHtml}</div>`;
     });
 
     document.getElementById('card-ovr').innerText = Math.round(sum/6);
