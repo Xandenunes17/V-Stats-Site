@@ -21,6 +21,12 @@
     --glow: 0 0 15px rgba(34, 197, 94, 0.3);
     --border-subtle: 1px solid rgba(229, 231, 235, 0.1);
 }
+.container {
+  width: 100%;
+  max-width: 1200px; /* ou 1400px se quiser mais largo */
+  margin: 0 auto;
+  padding: 0 20px;
+}
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 body { background: var(--bg-main); color: var(--text-light); overflow-x: hidden; padding-bottom: 100px; }
@@ -182,7 +188,18 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     .card-header { flex-direction: column; }
     .card-left, .card-right { width: 100%; border-right: none; } 
     .card-left { border-bottom: var(--border-subtle); flex-direction: row; justify-content: space-between; padding: 15px 20px; }
-    .overall-wrapper { width: 60px; height: 60px; }
+    .overall-wrapper {  width: clamp(60px, 18vw, 90px);
+  aspect-ratio: 1 / 1; /* mantém quadrado perfeito */
+  border-radius: 50%;
+  border: 3px solid #22C55E;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: clamp(18px, 5vw, 28px);
+  font-weight: bold;
+  color: #E5E7EB;}
     .overall-val { font-size: 28px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
 }
