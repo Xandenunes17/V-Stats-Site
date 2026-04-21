@@ -49,7 +49,7 @@ nav { display: flex; justify-content: space-between; align-items: center; paddin
 .athlete-item { border: var(--border); padding: 15px; border-radius: 15px; background: var(--gray); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 4px 4px 0px var(--black); }
 .search-ovr { background: var(--black); color: var(--green); padding: 5px 10px; border-radius: 8px; font-weight: 900; font-size: 18px; border: 1px solid var(--green); }
 
-input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); }
+input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); font-size: 15px; }
 .btn { background: var(--black); color: var(--white); border: var(--border); padding: 12px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; }
 
 .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 450px; display: flex; background: var(--white); border: var(--border); border-bottom: none; border-radius: 20px 20px 0 0; padding: 10px 0; z-index: 1000; }
@@ -114,12 +114,18 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                         </div>
 
                         <div id="edit-profile-area" class="hidden" style="margin-top:10px; background:var(--gray); padding:10px; border-radius:10px;">
-                            <label style="font-size:10px; font-weight:bold;">Posição:</label>
-                            <select id="update-pos"><option value="Levantador">Levantador</option><option value="Oposto">Oposto</option><option value="Ponteiro">Ponteiro</option><option value="Central">Central</option><option value="Líbero">Líbero</option></select>
                             <label style="font-size:10px; font-weight:bold;">Time:</label>
-                            <select id="update-team"><option value="Livre">Livre</option><option value="União Vôlei">União Vôlei</option><option value="Vôlei Mar">Vôlei Mar</option></select>
+                            <select id="update-team">
+                                <option value="Livre">Livre</option>
+                                <option value="União Vôlei">União Vôlei</option>
+                                <option value="Vôlei Mar">Vôlei Mar</option>
+                            </select>
                             <label style="font-size:10px; font-weight:bold;">Cidade:</label>
-                            <select id="update-city"><option value="Brasil">Brasil</option><option value="Amargosa">Amargosa</option><option value="Salvador">Salvador</option></select>
+                            <select id="update-city">
+                                <option value="Brasil">Brasil</option>
+                                <option value="Amargosa">Amargosa</option>
+                                <option value="Salvador">Salvador</option>
+                            </select>
                             <button class="btn" style="margin-top:10px; font-size:12px;" onclick="saveProfileUpdates()">Salvar</button>
                         </div>
                         <div style="height:130px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
@@ -142,9 +148,20 @@ const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co';
 const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
+// INTEGRAÇÃO COM SEU REPOSITÓRIO GITHUB
+const GITHUB_BASE = "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets";
+
 const BIBLIOTECA_IMAGENS = {
-    times: { "União Vôlei": `https://github.com/Xandenunes17/V-Stats-Site/blob/main/vstats-assets/Uni%C3%A3o-V%C3%B4lei-Logo.png`, "Vôlei Mar": "LINK_LOGO_2", "Livre": "" },
-    cidades: { "Amargosa": `https://github.com/Xandenunes17/V-Stats-Site/blob/main/vstats-assets/Amargosa-Bandeira.png`, "Salvador": "LINK_BANDEIRA_2", "Brasil": "" }
+    times: { 
+        "União Vôlei": `${GITHUB_BASE}/União-Vôlei-Logo.png`, 
+        "Vôlei Mar": `${GITHUB_BASE}/Logo-Volei-Mar.png`, 
+        "Livre": "" 
+    },
+    cidades: { 
+        "Amargosa": `${GITHUB_BASE}/Amargosa-Bandeira.png`, 
+        "Salvador": `${GITHUB_BASE}/Salvador-Bandeira.png`, 
+        "Brasil": "" 
+    }
 };
 
 let currentUserData = null;
@@ -165,12 +182,12 @@ async function handleAuth() {
         alert("Conta criada!"); location.reload();
     } else {
         const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
-        if(data && data.pass === pass) { currentUserData = data; enterApp(); } else alert("Erro!");
+        if(data && data.pass === pass) { currentUserData = data; enterApp(); } else alert("Erro no login!");
     }
 }
 
 async function saveProfileUpdates() {
-    await _supabase.from('atletas').update({ pos: document.getElementById('update-pos').value, team: document.getElementById('update-team').value, city: document.getElementById('update-city').value }).eq('nick', currentUserData.nick);
+    await _supabase.from('atletas').update({ team: document.getElementById('update-team').value, city: document.getElementById('update-city').value }).eq('nick', currentUserData.nick);
     location.reload();
 }
 
