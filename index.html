@@ -25,25 +25,11 @@ nav { display: flex; justify-content: space-between; align-items: center; paddin
 .logo { font-weight: 900; font-size: 22px; }
 
 .main-container { width: 95%; max-width: 450px; margin: 20px auto; display: flex; flex-direction: column; gap: 20px; }
-
 .player-card { border: var(--border); border-radius: 25px; background: var(--white); box-shadow: var(--shadow); overflow: hidden; width: 100%; }
-
 .card-header { display: flex; border-bottom: var(--border); flex-wrap: wrap; background: var(--white); }
 
-.card-left { 
-    width: 32%; 
-    background: var(--gray); 
-    border-right: var(--border); 
-    padding: 15px 5px; 
-    text-align: center; 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
-
+.card-left { width: 32%; background: var(--gray); border-right: var(--border); padding: 15px 5px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .card-right { width: 68%; padding: 15px; position: relative; }
-
 .overall-val { font-size: 60px; font-weight: 900; line-height: 1; margin-bottom: -5px; }
 
 .badges-wrapper { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
@@ -68,8 +54,6 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
 .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 450px; display: flex; background: var(--white); border: var(--border); border-bottom: none; border-radius: 20px 20px 0 0; padding: 10px 0; z-index: 1000; }
 .nav-item { flex: 1; text-align: center; font-size: 11px; font-weight: bold; cursor: pointer; }
 
-.filter-row { display: flex; gap: 5px; margin-bottom: 15px; }
-
 .hidden { display: none !important; }
 @media (max-width: 400px) { .card-left, .card-right { width: 100%; border-right: none; } .card-left { border-bottom: var(--border); } }
 </style>
@@ -87,7 +71,7 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
         <input type="text" id="auth-nick" placeholder="Apelido">
         <input type="password" id="auth-pass" placeholder="Senha">
         <div id="register-fields" class="hidden">
-            <input type="email" id="reg-email" placeholder="E-mail">
+            <input type="email" id="reg-email" placeholder="E-mail (opcional)">
             <select id="reg-pos-init">
                 <option value="Levantador">Levantador</option>
                 <option value="Oposto">Oposto</option>
@@ -97,25 +81,25 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
             </select>
         </div>
         <button class="btn" style="margin-top:15px" onclick="handleAuth()">Confirmar</button>
-        <p onclick="toggleAuthMode()" style="text-align:center; margin-top:15px; cursor:pointer; text-decoration:underline; font-size:12px;">Registre-se aqui</p>
+        <p onclick="toggleAuthMode()" style="text-align:center; margin-top:15px; cursor:pointer; text-decoration:underline; font-size:12px;">Não tem conta? Registe-se</p>
     </div>
 
     <div id="main-app" class="hidden">
         
         <div id="page-ranking" class="app-page hidden">
             <h2 style="margin-bottom:15px">🏆 Ranking Global</h2>
-            <div class="filter-row">
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
                 <select id="rank-stat" onchange="renderRanking()">
-                    <option value="OVR">Ordenar: OVR (Média)</option>
-                    <option value="ATA">Ataque (ATA)</option>
-                    <option value="LEV">Levantamento (LEV)</option>
-                    <option value="BLO">Bloqueio (BLO)</option>
-                    <option value="DEF">Defesa (DEF)</option>
-                    <option value="PAS">Passe (PAS)</option>
-                    <option value="SAQ">Saque (SAQ)</option>
+                    <option value="OVR">Média (OVR)</option>
+                    <option value="ATA">Ataque</option>
+                    <option value="LEV">Levantamento</option>
+                    <option value="BLO">Bloqueio</option>
+                    <option value="DEF">Defesa</option>
+                    <option value="PAS">Passe</option>
+                    <option value="SAQ">Saque</option>
                 </select>
                 <select id="rank-pos" onchange="renderRanking()">
-                    <option value="Todos">Posição: Todas</option>
+                    <option value="Todos">Todas as Posições</option>
                     <option value="Levantador">Levantador</option>
                     <option value="Oposto">Oposto</option>
                     <option value="Ponteiro">Ponteiro</option>
@@ -128,37 +112,21 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
 
         <div id="page-search" class="app-page">
             <h2 style="margin-bottom:15px">🔍 Atletas</h2>
-            <input type="text" id="search-input" placeholder="Buscar atleta por nome..." oninput="renderSearch()">
-            <div class="filter-row">
-                <select id="search-pos" onchange="renderSearch()">
-                    <option value="">Posição (Todas)</option>
-                    <option value="Levantador">Levantador</option>
-                    <option value="Oposto">Oposto</option>
-                    <option value="Ponteiro">Ponteiro</option>
-                    <option value="Central">Central</option>
-                    <option value="Líbero">Líbero</option>
-                </select>
-                <select id="search-city" onchange="renderSearch()">
-                    <option value="">Cidade (Todas)</option>
-                    <option value="Amargosa">Amargosa</option>
-                    <option value="Salvador">Salvador</option>
-                    <option value="Brasil">Outra</option>
-                </select>
-            </div>
+            <input type="text" id="search-input" placeholder="Procurar atleta..." oninput="renderSearch()">
             <div id="athlete-list"></div>
         </div>
 
         <div id="page-profile" class="app-page hidden">
             <button class="btn" id="btn-back" onclick="showPage('search')" style="margin-bottom:15px; display:none; background:var(--gray); color:var(--text); width: auto;">← Voltar</button>
+            
             <div class="player-card">
                 <div class="card-header">
                     <div class="card-left">
-                        <div class="overall-val" id="card-ovr">00</div>
+                        <div class="overall-val" id="card-ovr">--</div>
                         <div id="card-pos" style="background:var(--green); color:#000; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; text-transform:uppercase;">POS</div>
-                        
                         <div class="badges-wrapper">
-                            <img id="display-team-logo" class="img-slot" src="" onerror="this.style.display='none'">
-                            <img id="display-city-flag" class="flag-slot" src="" onerror="this.style.display='none'">
+                            <img id="display-team-logo" class="img-slot" src="">
+                            <img id="display-city-flag" class="flag-slot" src="">
                         </div>
                     </div>
                     <div class="card-right">
@@ -166,18 +134,15 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <img id="card-photo" src="" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: var(--border); background: var(--gray);" onerror="this.src='https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png'">
                                 <div>
-                                    <h2 id="card-nick" style="font-size: 22px; line-height: 1;">NOME</h2>
-                                    <p id="card-details" style="font-size:12px; opacity:0.7;">Cidade | Time</p>
+                                    <h2 id="card-nick" style="font-size: 20px; line-height: 1;">NOME</h2>
+                                    <p id="card-details" style="font-size:11px; opacity:0.7;">Cidade | Time</p>
                                 </div>
                             </div>
                             <button id="btn-edit-trigger" onclick="toggleEditFields()" style="background:none; border:1px solid #ccc; border-radius:5px; padding:2px 5px; cursor:pointer;">⚙️</button>
                         </div>
 
                         <div id="edit-profile-area" class="hidden" style="margin-top:15px; background:var(--gray); padding:10px; border-radius:10px;">
-                            <label style="font-size:10px; font-weight:bold;">Link da Foto de Perfil (URL):</label>
-                            <input type="text" id="update-photo" placeholder="Cole o link da sua foto aqui">
-                            
-                            <label style="font-size:10px; font-weight:bold;">Posição:</label>
+                            <input type="text" id="update-photo" placeholder="URL da foto">
                             <select id="update-pos">
                                 <option value="Levantador">Levantador</option>
                                 <option value="Oposto">Oposto</option>
@@ -185,25 +150,24 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                                 <option value="Central">Central</option>
                                 <option value="Líbero">Líbero</option>
                             </select>
-                            <label style="font-size:10px; font-weight:bold;">Time:</label>
                             <select id="update-team">
                                 <option value="Livre">Livre</option>
                                 <option value="União Vôlei">União Vôlei</option>
                                 <option value="Vôlei Mar">Vôlei Mar</option>
                             </select>
-                            <label style="font-size:10px; font-weight:bold;">Cidade:</label>
                             <select id="update-city">
                                 <option value="Brasil">Brasil</option>
                                 <option value="Amargosa">Amargosa</option>
                                 <option value="Salvador">Salvador</option>
                             </select>
-                            <button class="btn" style="margin-top:10px; font-size:12px;" onclick="saveProfileUpdates()">Salvar Perfil</button>
+                            <button class="btn" style="margin-top:5px; font-size:12px;" onclick="saveProfileUpdates()">Salvar Alterações</button>
                         </div>
-                        <div style="height:140px; margin-top:15px;"><canvas id="radarChart"></canvas></div>
+
+                        <div style="height:130px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
                     </div>
                 </div>
                 <div id="card-stats-grid" class="stats-grid"></div>
-                <div style="padding:20px"><button class="btn" id="btn-logout" style="background:#ff4444" onclick="logout()">Sair</button></div>
+                <div style="padding:15px"><button class="btn" id="btn-logout" style="background:#ff4444" onclick="logout()">Sair da Conta</button></div>
             </div>
         </div>
     </div>
@@ -216,23 +180,14 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
 </div>
 
 <script>
-// --- CONFIGURAÇÃO ---
 const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co'; 
 const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 const GITHUB_BASE = "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets";
 
 const BIBLIOTECA_IMAGENS = {
-    times: { 
-        "União Vôlei": `${GITHUB_BASE}/Logo-Uniao-Volei.png`, 
-        "Vôlei Mar": `${GITHUB_BASE}/Logo-Volei-Mar.png`, 
-        "Livre": `${GITHUB_BASE}/Logo-Livre.png` 
-    },
-    cidades: { 
-        "Amargosa": `${GITHUB_BASE}/Amargosa-Bandeira.png`, 
-        "Salvador": `${GITHUB_BASE}/Salvador-Bandeira.png`, 
-        "Brasil": `${GITHUB_BASE}/Brasil-Bandeira.png` 
-    }
+    times: { "União Vôlei": `${GITHUB_BASE}/Logo-Uniao-Volei.png`, "Vôlei Mar": `${GITHUB_BASE}/Logo-Volei-Mar.png`, "Livre": `${GITHUB_BASE}/Logo-Livre.png` },
+    cidades: { "Amargosa": `${GITHUB_BASE}/Amargosa-Bandeira.png`, "Salvador": `${GITHUB_BASE}/Salvador-Bandeira.png`, "Brasil": `${GITHUB_BASE}/Brasil-Bandeira.png` }
 };
 
 let currentUserData = null;
@@ -241,236 +196,155 @@ let radarChart = null;
 let isDarkMode = false;
 let isRegisterMode = false;
 
-// --- PERSISTÊNCIA DE LOGIN ---
 window.onload = () => {
     const savedUser = localStorage.getItem('vstats_user');
-    if (savedUser) {
-        currentUserData = JSON.parse(savedUser);
-        enterApp();
-    }
+    if (savedUser) { currentUserData = JSON.parse(savedUser); enterApp(); }
 };
 
 function toggleDarkMode() { isDarkMode = !isDarkMode; document.body.classList.toggle('dark-mode', isDarkMode); if(viewedUserData) displayCard(viewedUserData); }
 function toggleAuthMode() { isRegisterMode = !isRegisterMode; document.getElementById('auth-title').innerText = isRegisterMode ? "Criar Conta" : "Entrar"; document.getElementById('register-fields').classList.toggle('hidden', !isRegisterMode); }
-function toggleEditFields() { 
-    if(!document.getElementById('edit-profile-area').classList.contains('hidden')) {
-        document.getElementById('edit-profile-area').classList.add('hidden');
-        return;
-    }
-    document.getElementById('update-photo').value = currentUserData.photo || "";
-    document.getElementById('update-pos').value = currentUserData.pos;
-    document.getElementById('update-team').value = currentUserData.team;
-    document.getElementById('update-city').value = currentUserData.city;
-    document.getElementById('edit-profile-area').classList.remove('hidden');
-}
+function toggleEditFields() { document.getElementById('edit-profile-area').classList.toggle('hidden'); }
 
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
-    
+    if(!nick || !pass) return alert("Preencha o Apelido e a Senha!");
+
     if(isRegisterMode) {
-        const pos = document.getElementById('reg-pos-init').value;
+        // Tentativa de registo com tratamento de erro detalhado
         const { data, error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, email: document.getElementById('reg-email').value, 
-            pos: pos, city: "Brasil", team: "Livre", photo: "",
-            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {} 
+            nick, pass, pos: document.getElementById('reg-pos-init').value, 
+            city: "Brasil", team: "Livre", photo: "", stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {} 
         }]).select();
         
-        if(error) return alert("Erro ao criar conta!");
+        if(error) {
+            console.error("Erro de Registo:", error);
+            return alert("Erro ao criar conta: " + (error.message.includes('photo') ? "A coluna 'photo' não existe no banco de dados. Execute o SQL no Supabase." : error.message));
+        }
         currentUserData = data[0];
-        localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
-        enterApp();
     } else {
-        const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
-        if(data && data.pass === pass) { 
-            currentUserData = data; 
-            localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
-            enterApp(); 
-        } else alert("Dados incorretos!");
+        const { data, error } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
+        if(data && data.pass === pass) {
+            currentUserData = data;
+        } else {
+            return alert("Apelido ou Senha incorretos!");
+        }
     }
+    localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
+    enterApp();
 }
 
-async function saveProfileUpdates() {
-    const newTeam = document.getElementById('update-team').value;
-    const newCity = document.getElementById('update-city').value;
-    const newPos = document.getElementById('update-pos').value;
-    const newPhoto = document.getElementById('update-photo').value;
-
-    const { error } = await _supabase
-        .from('atletas')
-        .update({ team: newTeam, city: newCity, pos: newPos, photo: newPhoto })
-        .eq('nick', currentUserData.nick);
-
-    if (error) {
-        alert("Erro ao salvar no Supabase!");
-    } else {
-        currentUserData.team = newTeam;
-        currentUserData.city = newCity;
-        currentUserData.pos = newPos;
-        currentUserData.photo = newPhoto;
-        localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
-        
-        document.getElementById('edit-profile-area').classList.add('hidden');
-        displayCard(currentUserData);
-        alert("Perfil atualizado com sucesso!");
-    }
-}
-
+// --- FUNÇÃO DE AVALIAÇÃO (CORRIGIDA) ---
 async function rateStat(statKey, stars) {
-    if(viewedUserData.nick === currentUserData.nick) return;
-    let ratings = viewedUserData.ratings || {};
+    if(!viewedUserData || viewedUserData.nick === currentUserData.nick) return;
+    
+    // 1. Buscar os ratings mais recentes do servidor para evitar conflitos
+    const { data: current, error: fError } = await _supabase.from('atletas').select('ratings').eq('nick', viewedUserData.nick).single();
+    if(fError) return alert("Erro ao contactar o servidor.");
+
+    let ratings = current.ratings || {};
     if(!ratings[statKey]) ratings[statKey] = { total: 0, count: 0 };
+    
     ratings[statKey].total += (stars * 20);
     ratings[statKey].count += 1;
-    await _supabase.from('atletas').update({ ratings }).eq('nick', viewedUserData.nick);
-    const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
-    displayCard(data);
+
+    // 2. Atualizar no Supabase
+    const { error: uError } = await _supabase.from('atletas').update({ ratings }).eq('nick', viewedUserData.nick);
+    
+    if(uError) {
+        console.error("Erro ao avaliar:", uError);
+        alert("Erro ao salvar avaliação. Verifique as permissões RLS no Supabase.");
+    } else {
+        // 3. Recarregar o cartão para mostrar a nova média
+        const { data: updatedUser } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
+        displayCard(updatedUser);
+    }
 }
 
 function displayCard(u) {
+    if(!u) return;
     viewedUserData = u;
     const isOwner = (u.nick === currentUserData.nick);
-    document.getElementById('card-nick').innerText = u.nick.toLowerCase();
+    
+    document.getElementById('card-nick').innerText = u.nick;
     document.getElementById('card-pos').innerText = u.pos;
     document.getElementById('card-details').innerText = `${u.city} | ${u.team}`;
-    
-    // Atualiza a foto
-    const defaultAvatar = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
-    document.getElementById('card-photo').src = u.photo || defaultAvatar;
-
+    document.getElementById('card-photo').src = u.photo || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png';
     document.getElementById('display-team-logo').src = BIBLIOTECA_IMAGENS.times[u.team] || '';
     document.getElementById('display-city-flag').src = BIBLIOTECA_IMAGENS.cidades[u.city] || '';
-    
-    document.getElementById('display-team-logo').style.display = BIBLIOTECA_IMAGENS.times[u.team] ? 'block' : 'none';
-    document.getElementById('display-city-flag').style.display = BIBLIOTECA_IMAGENS.cidades[u.city] ? 'block' : 'none';
-
     document.getElementById('btn-edit-trigger').style.display = isOwner ? 'block' : 'none';
 
-    const grid = document.getElementById('card-stats-grid');
-    grid.innerHTML = '';
-    let sum = 0;
-    const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
-    const vals = [];
-
+    const grid = document.getElementById('card-stats-grid'); grid.innerHTML = '';
+    let sum = 0; const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ']; const vals = [];
+    
     keys.forEach(k => {
-        let baseVal = u.stats[k] || 60;
+        let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 60;
         let avgStars = 0;
-        if(u.ratings && u.ratings[k]) {
+        
+        if(u.ratings && u.ratings[k] && u.ratings[k].count > 0) {
             const avgPoints = u.ratings[k].total / u.ratings[k].count;
             avgStars = Math.round(avgPoints / 20);
             baseVal = Math.round((baseVal + avgPoints) / 2);
         }
+        
         sum += baseVal; vals.push(baseVal);
-
-        let starsHtml = isOwner ? '' : `<div class="stars-container">`;
+        
+        let starsHtml = isOwner ? '' : '<div class="stars-container">';
         if(!isOwner) {
-            for(let i=1; i<=5; i++) starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`;
-            starsHtml += `</div>`;
+            for(let i=1; i<=5; i++) {
+                starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`;
+            }
+            starsHtml += '</div>';
         }
+        
         grid.innerHTML += `<div class="stat-box"><span class="stat-name">${k}</span><span class="stat-num">${baseVal}</span>${starsHtml}</div>`;
     });
+    
     document.getElementById('card-ovr').innerText = Math.round(sum/6);
-    setTimeout(() => initChart(vals), 50);
+    const chartColor = isDarkMode ? '#B9FF66' : '#191A23';
+    setTimeout(() => initChart(vals, chartColor), 50);
 }
 
-// --- FUNÇÃO DE BUSCA ATUALIZADA (COM FILTROS) ---
 async function renderSearch() {
     const q = document.getElementById('search-input').value.toLowerCase();
-    const posFilter = document.getElementById('search-pos').value;
-    const cityFilter = document.getElementById('search-city').value;
-
-    let query = _supabase.from('atletas').select('*').ilike('nick', `%${q}%`);
-    if(posFilter) query = query.eq('pos', posFilter);
-    if(cityFilter) query = query.eq('city', cityFilter);
-
-    const { data } = await query.limit(20);
-    const listEl = document.getElementById('athlete-list');
-    listEl.innerHTML = '';
-    
+    const { data } = await _supabase.from('atletas').select('*').ilike('nick', `%${q}%`);
+    const list = document.getElementById('athlete-list'); list.innerHTML = '';
     data?.forEach(u => {
-        let sum = 0;
-        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k];
-            if(u.ratings && u.ratings[k]) val = (val + (u.ratings[k].total/u.ratings[k].count))/2;
+        let sum = 0; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+            let val = u.stats[k] || 60; 
+            if(u.ratings?.[k]) val = (val + (u.ratings[k].total/u.ratings[k].count))/2;
             sum += val;
         });
-        const ovr = Math.round(sum/6);
-        const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
-
-        listEl.innerHTML += `
-        <div class="athlete-item" onclick="loadOther('${u.nick}')">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #ccc;">
-                <div><strong>${u.nick.toLowerCase()}</strong><br><small>${u.pos} | ${u.city}</small></div>
-            </div>
-            <div class="search-ovr"><small style="font-size:8px; line-height:1;">OVR</small>${ovr}</div>
-        </div>`;
+        list.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick}</strong><br><small>${u.pos}</small></div><div class="search-ovr">${Math.round(sum/6)}</div></div>`;
     });
 }
 
-// --- FUNÇÃO DO RANKING GLOBAL ---
 async function renderRanking() {
-    const statFilter = document.getElementById('rank-stat').value;
-    const posFilter = document.getElementById('rank-pos').value;
-    
+    const stat = document.getElementById('rank-stat').value;
+    const pos = document.getElementById('rank-pos').value;
     let query = _supabase.from('atletas').select('*');
-    if(posFilter !== 'Todos') query = query.eq('pos', posFilter);
-    
+    if(pos !== 'Todos') query = query.eq('pos', pos);
     const { data } = await query;
     if(!data) return;
-    
-    // Calcula os status finais para ordenar corretamente
+
     const list = data.map(u => {
-        let sum = 0;
-        const effStats = {};
-        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 60;
-            if(u.ratings && u.ratings[k]) val = Math.round((val + (u.ratings[k].total/u.ratings[k].count))/2);
-            effStats[k] = val;
-            sum += val;
+        let sum = 0; const s = {}; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+            let val = u.stats[k] || 60; if(u.ratings?.[k]) val = Math.round((val + (u.ratings[k].total/u.ratings[k].count))/2);
+            s[k] = val; sum += val;
         });
-        effStats['OVR'] = Math.round(sum/6);
-        return { ...u, effStats };
-    });
-    
-    // Ordena do maior pro menor pelo status escolhido
-    list.sort((a, b) => b.effStats[statFilter] - a.effStats[statFilter]);
-    
-    const listEl = document.getElementById('ranking-list');
-    listEl.innerHTML = '';
-    
-    list.slice(0, 50).forEach((u, i) => {
-        const highlightVal = u.effStats[statFilter];
-        let rankBadge = `<strong style="font-size:18px; width:30px; text-align:center;">${i+1}º</strong>`;
-        if(i === 0) rankBadge = `<strong style="font-size:24px; width:30px; text-align:center;">🥇</strong>`;
-        if(i === 1) rankBadge = `<strong style="font-size:24px; width:30px; text-align:center;">🥈</strong>`;
-        if(i === 2) rankBadge = `<strong style="font-size:24px; width:30px; text-align:center;">🥉</strong>`;
-        
-        const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
+        s.OVR = Math.round(sum/6); return {...u, s};
+    }).sort((a,b) => b.s[stat] - a.s[stat]);
 
-        // Muda a cor do card do ranking se não for o OVR
-        const highlightStyle = statFilter !== 'OVR' 
-            ? 'background:transparent; color:var(--text); border-color:var(--text);' 
-            : '';
-
-        listEl.innerHTML += `
-        <div class="athlete-item" onclick="loadOther('${u.nick}')">
-            <div style="display:flex; align-items:center; gap:10px;">
-                ${rankBadge}
-                <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid #ccc;">
-                <div><strong>${u.nick.toLowerCase()}</strong><br><small>${u.pos} | ${u.team}</small></div>
-            </div>
-            <div class="search-ovr" style="${highlightStyle}">
-                <small style="font-size:9px; display:block; line-height:1; color:inherit;">${statFilter}</small>${highlightVal}
-            </div>
-        </div>`;
+    const listEl = document.getElementById('ranking-list'); listEl.innerHTML = '';
+    list.forEach((u, i) => {
+        let badge = i<3 ? ['🥇','🥈','🥉'][i] : `${i+1}º`;
+        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div>${badge} <strong>${u.nick}</strong></div><div class="search-ovr" style="${stat!=='OVR'?'border-color:var(--text)':''}"><small style="font-size:8px">${stat}</small>${u.s[stat]}</div></div>`;
     });
 }
 
-function initChart(data) {
+function initChart(data, color) {
     const ctx = document.getElementById('radarChart').getContext('2d');
     if(radarChart) radarChart.destroy();
-    const color = isDarkMode ? '#B9FF66' : '#191A23';
     radarChart = new Chart(ctx, {
         type: 'radar',
         data: { labels: ['ATA','LEV','BLO','DEF','PAS','SAQ'], datasets: [{ data, backgroundColor: 'rgba(185, 255, 102, 0.4)', borderColor: '#B9FF66', borderWidth: 2, pointRadius: 0 }] },
@@ -478,24 +352,54 @@ function initChart(data) {
     });
 }
 
-async function loadOther(nick) { const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single(); if(data) { showPage('profile'); displayCard(data); document.getElementById('btn-back').style.display='block'; document.getElementById('btn-logout').classList.add('hidden'); } }
+async function saveProfileUpdates() {
+    const update = { 
+        team: document.getElementById('update-team').value, 
+        city: document.getElementById('update-city').value, 
+        pos: document.getElementById('update-pos').value, 
+        photo: document.getElementById('update-photo').value 
+    };
+    const { error } = await _supabase.from('atletas').update(update).eq('nick', currentUserData.nick);
+    if(error) {
+        alert("Erro ao salvar: " + error.message);
+    } else {
+        currentUserData = {...currentUserData, ...update};
+        localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
+        displayCard(currentUserData);
+        toggleEditFields();
+        alert("Perfil atualizado!");
+    }
+}
 
-function showPage(p) { 
-    document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden')); 
-    document.getElementById('page-' + p).classList.remove('hidden'); 
-    
+async function loadOther(nick) { 
+    const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
+    if(data) { 
+        showPage('profile'); 
+        displayCard(data); 
+        document.getElementById('btn-back').style.display='block'; 
+        document.getElementById('btn-logout').classList.add('hidden'); 
+    } 
+}
+
+function showPage(p) {
+    document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
+    document.getElementById('page-' + p).classList.remove('hidden');
     if(p === 'profile') { 
         displayCard(currentUserData); 
         document.getElementById('btn-back').style.display='none'; 
         document.getElementById('btn-logout').classList.remove('hidden'); 
-    } else if (p === 'search') {
-        renderSearch();
-    } else if (p === 'ranking') {
-        renderRanking();
     }
+    else if(p === 'search') renderSearch(); 
+    else if(p === 'ranking') renderRanking();
 }
 
-function enterApp() { document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden'); document.getElementById('nav-bar').classList.remove('hidden'); showPage('profile'); }
+function enterApp() { 
+    document.getElementById('auth-screen').classList.add('hidden'); 
+    document.getElementById('main-app').classList.remove('hidden'); 
+    document.getElementById('nav-bar').classList.remove('hidden'); 
+    showPage('profile'); 
+}
+
 function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
 </script>
 </body>
