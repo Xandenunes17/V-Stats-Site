@@ -98,10 +98,10 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .overall-wrapper {
     position: relative; width: 80px; height: 80px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; border: 3px solid var(--primary);
-    box-shadow: inset 0 0 10px rgba(34,197,94,0.2), 0 0 15px rgba(34,197,94,0.4);
+    border-radius: 50%; border: 3px solid var(--white); /* Cor dinâmica via JS */
+    transition: all 0.3s ease;
 }
-.overall-val { font-size: 38px; font-weight: 900; color: var(--white); }
+.overall-val { font-size: 38px; font-weight: 900; color: var(--white); transition: color 0.3s ease;}
 
 .badges-wrapper { display: flex; gap: 10px; justify-content: center; width: 100%; margin-top: 5px; }
 .logo-main {
@@ -132,11 +132,11 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .stat-box { 
     background: var(--bg-main); padding: 12px 5px; 
     border-radius: 8px; text-align: center; border: 1px solid var(--bg-card);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s;
 }
-.stat-box:hover { transform: translateY(-2px); border-color: rgba(34,197,94,0.5); box-shadow: var(--glow); }
-.stat-name { font-size: 10px; color: var(--primary); font-weight: bold; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; }
-.stat-num { font-size: 22px; color: var(--white); }
+.stat-box:hover { transform: translateY(-2px); box-shadow: var(--glow); }
+.stat-name { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; transition: color 0.3s; }
+.stat-num { font-size: 22px; color: var(--white); transition: color 0.3s; }
 
 /* Estrelas de Avaliação */
 .stars-container { display: flex; justify-content: center; gap: 2px; margin-top: 6px; }
@@ -153,7 +153,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     cursor: pointer; display: flex; justify-content: space-between; 
     align-items: center; transition: all 0.3s;
 }
-.athlete-item:hover { border-color: var(--primary); transform: translateX(5px); background: var(--bg-card); }
+.athlete-item:hover { transform: translateX(5px); background: var(--bg-card); }
 .athlete-info { display: flex; align-items: center; gap: 15px; }
 .athlete-info img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 1px solid var(--bg-main); }
 .athlete-info h4 { font-family: 'Orbitron', sans-serif; color: var(--white); font-size: 16px; text-transform: uppercase; }
@@ -294,7 +294,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
             <div class="player-card">
                 <div class="card-header">
                     <div class="card-left">
-                        <div class="overall-wrapper">
+                        <div class="overall-wrapper" id="ovr-wrapper">
                             <div class="overall-val" id="card-ovr">00</div>
                         </div>
                         <div class="pos-badge" id="card-pos">POS</div>
@@ -390,6 +390,16 @@ window.onload = () => {
     const savedUser = localStorage.getItem('vstats_user');
     if (savedUser) { currentUserData = JSON.parse(savedUser); enterApp(); }
 };
+
+// --- FUNÇÃO PARA CALCULAR A COR BASEADA NO VALOR (0 a 100) ---
+function getDynamicColor(value, alpha = 1) {
+    // Garante que o valor esteja entre 0 e 100
+    const val = Math.max(0, Math.min(100, value));
+    // Mapeia 0-100 para 0-120 na roda de cores HSL
+    // 0 = Vermelho, 60 = Amarelo, 120 = Verde
+    const hue = val * 1.2; 
+    return `hsla(${hue}, 85%, 50%, ${alpha})`;
+}
 
 function toggleAuthMode() { 
     isRegisterMode = !isRegisterMode; 
@@ -497,11 +507,32 @@ function displayCard(u) {
             for(let i=1; i<=5; i++) starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`;
             starsHtml += '</div>';
         }
-        grid.innerHTML += `<div class="stat-box"><span class="stat-name">${k}</span><span class="stat-num">${baseVal}</span>${starsHtml}</div>`;
+
+        // Aplicando cor dinâmica na caixa de status
+        const dynamicColor = getDynamicColor(baseVal);
+        const boxBorderColor = getDynamicColor(baseVal, 0.3);
+
+        grid.innerHTML += `
+        <div class="stat-box" style="border-color: ${boxBorderColor}; background: rgba(0,0,0,0.2);">
+            <span class="stat-name" style="color: ${dynamicColor};">${k}</span>
+            <span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>
+            ${starsHtml}
+        </div>`;
     });
     
-    document.getElementById('card-ovr').innerText = Math.round(sum/6);
-    setTimeout(() => initChart(vals), 50);
+    const ovr = Math.round(sum/6);
+    const ovrColor = getDynamicColor(ovr);
+
+    // Colorir Borda e Texto do Status Geral (OVR)
+    const ovrWrapper = document.getElementById('ovr-wrapper');
+    ovrWrapper.style.borderColor = ovrColor;
+    ovrWrapper.style.boxShadow = `inset 0 0 10px ${getDynamicColor(ovr, 0.2)}, 0 0 15px ${getDynamicColor(ovr, 0.4)}`;
+    
+    const ovrText = document.getElementById('card-ovr');
+    ovrText.innerText = ovr;
+    ovrText.style.color = ovrColor;
+
+    setTimeout(() => initChart(vals, ovrColor), 50);
 }
 
 async function renderSearch() {
@@ -522,15 +553,19 @@ async function renderSearch() {
             sum += val;
         });
         const ovr = Math.round(sum/6);
+        const ovrColor = getDynamicColor(ovr);
         const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
         
         list.innerHTML += `
-        <div class="athlete-item" onclick="loadOther('${u.nick}')">
+        <div class="athlete-item" style="border-left: 4px solid ${ovrColor};" onclick="loadOther('${u.nick}')">
             <div class="athlete-info">
                 <img src="${avatar}">
                 <div><h4>${u.nick}</h4><p>${u.pos} | ${u.team}</p></div>
             </div>
-            <div class="search-ovr"><small>OVR</small>${ovr}</div>
+            <div class="search-ovr" style="border-color: ${ovrColor};">
+                <small style="color: ${ovrColor};">OVR</small>
+                <span style="color: ${ovrColor};">${ovr}</span>
+            </div>
         </div>`;
     });
 }
@@ -560,35 +595,49 @@ async function renderRanking() {
         if(i===2) badge = `<span style="font-size:22px;">🥉</span>`;
         
         const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
-        const isOvr = stat === 'OVR';
+        const statValue = u.s[stat];
+        const statColor = getDynamicColor(statValue);
 
         listEl.innerHTML += `
-        <div class="athlete-item" onclick="loadOther('${u.nick}')">
+        <div class="athlete-item" style="border-left: 4px solid ${statColor};" onclick="loadOther('${u.nick}')">
             <div class="athlete-info">
                 ${badge}
                 <img src="${avatar}">
                 <div><h4>${u.nick}</h4><p>${u.pos}</p></div>
             </div>
-            <div class="search-ovr" style="${!isOvr ? 'background:transparent; border-color:var(--text-light); color:var(--white)' : ''}">
-                <small style="${!isOvr ? 'color:var(--primary)' : ''}">${stat}</small>${u.s[stat]}
+            <div class="search-ovr" style="border-color: ${statColor};">
+                <small style="color: ${statColor};">${stat}</small>
+                <span style="color: ${statColor};">${statValue}</span>
             </div>
         </div>`;
     });
 }
 
-function initChart(data) {
+function initChart(data, baseColor) {
     const ctx = document.getElementById('radarChart').getContext('2d');
     if(radarChart) radarChart.destroy();
+
+    // Extrair os valores HSL da cor retornada ou usar um padrão
+    const isHsla = baseColor && baseColor.startsWith('hsla');
+    const borderColor = baseColor || '#22C55E';
+    
+    // Tentar criar um background mais transparente baseado na cor fornecida
+    let bgColor = 'rgba(34, 197, 94, 0.2)'; 
+    if (isHsla) {
+        // Substitui a opacidade (último valor do hsla)
+        bgColor = baseColor.replace(/[\d.]+\)$/g, '0.2)'); 
+    }
+
     radarChart = new Chart(ctx, {
         type: 'radar',
         data: { 
             labels: ['ATA','LEV','BLO','DEF','PAS','SAQ'], 
             datasets: [{ 
                 data, 
-                backgroundColor: 'rgba(34, 197, 94, 0.2)', 
-                borderColor: '#22C55E', 
+                backgroundColor: bgColor, 
+                borderColor: borderColor, 
                 borderWidth: 2, 
-                pointBackgroundColor: '#22C55E',
+                pointBackgroundColor: borderColor,
                 pointBorderColor: '#0F1115',
                 pointRadius: 4,
                 pointHoverRadius: 6
