@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>V-Stats ✦ Global</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+<style>
+:root { --green: #B9FF66; --black: #191A23; --white: #FFFFFF; --gray: #F3F3F3; --border: 2px solid #191A23; --shadow: 6px 6px 0px #191A23; --text: #191A23; }
+body.dark-mode { --white: #191A23; --black: #B9FF66; --gray: #292A33; --text: #FFFFFF; --border: 2px solid #B9FF66; --shadow: 6px 6px 0px #B9FF66; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; transition: background 0.3s, color 0.3s; }
+body { background: var(--white); color: var(--text); overflow-x: hidden; }
+
+nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; border-bottom: var(--border); background: var(--white); position: sticky; top: 0; z-index: 1000; }
+.logo { font-weight: 900; font-size: 22px; }
+
+.screen { min-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+.auth-card { width: 100%; max-width: 400px; border: var(--border); padding: 30px; border-radius: 20px; box-shadow: var(--shadow); background: var(--white); }
+
+input { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); font-size: 16px; }
+
+.btn { 
+    background: var(--black); color: var(--white); border: var(--border); 
+    padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold;
+    box-shadow: 4px 4px 0px var(--black); width: 100%; transition: 0.1s;
+    text-align: center; display: block;
+}
+.btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--black); }
+
+.stars-container { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
+.star-btn { cursor: pointer; font-size: 18px; color: #ccc; }
+.star-btn:hover { color: var(--green); }
+
+.card-container { max-width: 600px; margin: 20px auto; padding: 15px; }
+.player-card { border: var(--border); border-radius: 25px; background: var(--white); box-shadow: 10px 10px 0px var(--black); overflow: hidden; }
+.card-header { display: flex; border-bottom: var(--border); flex-wrap: wrap; }
+.card-left { width: 35%; background: var(--gray); border-right: var(--border); padding: 20px; text-align: center; }
+.card-right { width: 65%; padding: 20px; min-height: 200px; }
+.overall-val { font-size: 60px; font-weight: 900; line-height: 1; }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px; }
+.stat-box { background: var(--black); color: var(--white); padding: 10px; border-radius: 12px; text-align: center; }
+.stat-name { font-size: 10px; color: var(--green); font-weight: bold; display: block; text-transform: uppercase; }
+.stat-num { font-size: 22px; font-weight: 900; }
+
+.athlete-item { border: var(--border); padding: 15px; border-radius: 15px; background: var(--gray); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 4px 4px 0px var(--black); }
+
+.bottom-nav { position: fixed; bottom: 0; width: 100%; display: flex; background: var(--white); border-top: var(--border); padding: 10px 0; z-index: 100; }
+.nav-item { flex: 1; text-align: center; font-size: 11px; font-weight: bold; cursor: pointer; }
+
+.hidden { display: none !important; }
+
+@media (max-width: 480px) { .card-left, .card-right { width: 100%; border-right: none; } .card-left { border-bottom: var(--border); } }
+</style>
+</head>
+<body>
+
+<nav>
+    <div class="logo">V-STATS ✦</div>
+    <button onclick="toggleDarkMode()" style="background:none; border:none; font-size:22px; cursor:pointer;">🌓</button>
+</nav>
+
+<div id="auth-screen" class="screen">
+    <div class="auth-card">
+        <h2 id="auth-title" style="margin-bottom:15px">Entrar</h2>
+        <input type="text" id="auth-nick" placeholder="Apelido">
+        <input type="password" id="auth-pass" placeholder="Senha">
+        <button class="btn" style="margin-top:15px" onclick="handleAuth()">Confirmar</button>
+        <p onclick="toggleAuthMode()" id="auth-toggle" style="text-align:center; margin-top:20px; cursor:pointer; font-size:13px; text-decoration:underline;">Não tem conta? Registre-se</p>
+    </div>
+</div>
+
+<div id="main-app" class="hidden">
+    <div id="page-search" class="app-page card-container">
+        <h2 style="margin-bottom:15px">🔍 Mercado de Atletas</h2>
+        <input type="text" id="search-input" placeholder="Buscar por apelido..." oninput="renderSearch()">
+        <div id="athlete-list" style="margin-top:15px; padding-bottom:100px;"></div>
+    </div>
+
+    <div id="page-profile" class="app-page card-container hidden">
+        <button class="btn" id="btn-back" onclick="showPage('search')" style="margin-bottom:15px; display:none; background:var(--gray); color:var(--text); box-shadow:none; width: auto;">← Voltar</button>
+        <div class="player-card">
+            <div class="card-header">
+                <div class="card-left">
+                    <div class="overall-val" id="card-ovr">00</div>
+                    <div id="card-pos" style="background:var(--green); color:#000; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">POS</div>
+                </div>
+                <div class="card-right">
+                    <h2 id="card-nick">NOME</h2>
+                    <p id="card-details">Cidade | Time</p>
+                    <div style="height:140px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
+                </div>
+            </div>
+            <div id="card-stats-grid" class="stats-grid"></div>
+            <div style="padding:20px"><button class="btn" id="btn-logout" style="background:#ff4444" onclick="logout()">Sair</button></div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item" onclick="showPage('profile')">👤<br>PERFIL</div>
+        <div class="nav-item" onclick="showPage('search')">🔍<br>BUSCA</div>
+    </div>
+</div>
+
+<script>
+// --- CONFIGURAÇÃO ATUALIZADA ---
+const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co'; 
+const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
+const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+let currentUserData = null;
+let viewedUserData = null;
+let radarChart = null;
+let isDarkMode = false;
+let isRegisterMode = false;
+
+function toggleDarkMode() {
+    isDarkMode = !isDarkMode;
+    document.body.classList.toggle('dark-mode', isDarkMode);
+    if(viewedUserData) displayCard(viewedUserData);
+}
+
+function toggleAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    document.getElementById('auth-title').innerText = isRegisterMode ? "Criar Conta" : "Entrar";
+    document.getElementById('auth-toggle').innerText = isRegisterMode ? "Já tem conta? Entrar" : "Não tem conta? Registre-se";
+}
+
+async function handleAuth() {
+    const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
+    const pass = document.getElementById('auth-pass').value.trim();
+
+    if(!nick || !pass) return alert("Preencha tudo!");
+
+    if(isRegisterMode) {
+        const { error } = await _supabase.from('atletas').insert([{ 
+            nick, pass, 
+            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, 
+            ratings: {}, 
+            onboarded: true, city: "Brasil", team: "Livre", pos: "Atleta"
+        }]);
+        if(error) return alert("Erro ou apelido já existe.");
+        alert("Conta criada!");
+        login(nick, pass);
+    } else {
+        login(nick, pass);
+    }
+}
+
+async function login(nick, pass) {
+    const { data, error } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
+    if(data && data.pass === pass) {
+        currentUserData = data;
+        enterApp();
+    } else {
+        alert("Dados incorretos.");
+    }
+}
+
+async function renderSearch() {
+    const q = document.getElementById('search-input').value.toLowerCase();
+    const listEl = document.getElementById('athlete-list');
+    let query = _supabase.from('atletas').select('*');
+    if(q) query = query.ilike('nick', `%${q}%`);
+    const { data } = await query.limit(10);
+    listEl.innerHTML = '';
+    data?.forEach(u => {
+        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos}</small></div><span>➜</span></div>`;
+    });
+}
+
+async function loadOther(nick) {
+    const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
+    if(data) {
+        showPage('profile');
+        document.getElementById('btn-back').style.display = 'block';
+        document.getElementById('btn-logout').classList.add('hidden');
+        displayCard(data);
+    }
+}
+
+async function rateStat(statKey, stars) {
+    if(viewedUserData.nick === currentUserData.nick) return;
+    let ratings = viewedUserData.ratings || {};
+    if(!ratings[statKey]) ratings[statKey] = { total: 0, count: 0 };
+    ratings[statKey].total += (stars * 20);
+    ratings[statKey].count += 1;
+    await _supabase.from('atletas').update({ ratings }).eq('nick', viewedUserData.nick);
+    const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
+    displayCard(data);
+}
+
+function displayCard(u) {
+    viewedUserData = u;
+    const isOwner = (u.nick === currentUserData.nick);
+    document.getElementById('card-nick').innerText = u.nick;
+    document.getElementById('card-pos').innerText = u.pos || 'Atleta';
+    document.getElementById('card-details').innerText = `${u.city} | ${u.team}`;
+    
+    const grid = document.getElementById('card-stats-grid');
+    grid.innerHTML = '';
+    let sum = 0;
+    const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
+    const values = [];
+
+    keys.forEach(k => {
+        let val = u.stats[k] || 60;
+        if(u.ratings && u.ratings[k]) {
+            const avg = u.ratings[k].total / u.ratings[k].count;
+            val = Math.round((val + avg) / 2);
+        }
+        sum += val;
+        values.push(val);
+
+        let starHtml = '';
+        if(!isOwner) {
+            starHtml = `<div class="stars-container">`;
+            for(let i=1; i<=5; i++) starHtml += `<span class="star-btn" onclick="rateStat('${k}', ${i})">★</span>`;
+            starHtml += `</div>`;
+        }
+
+        grid.innerHTML += `<div class="stat-box"><span class="stat-name">${k}</span><span class="stat-num">${val}</span>${starHtml}</div>`;
+    });
+
+    document.getElementById('card-ovr').innerText = Math.round(sum/6);
+    setTimeout(() => initChart(values), 50);
+}
+
+function initChart(data) {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    if(radarChart) radarChart.destroy();
+    const color = isDarkMode ? '#B9FF66' : '#191A23';
+    radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['ATA','LEV','BLO','DEF','PAS','SAQ'],
+            datasets: [{ data, backgroundColor: 'rgba(185, 255, 102, 0.4)', borderColor: color, borderWidth: 2, pointRadius: 0 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: isDarkMode?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)' }, pointLabels: { color: color, font: { weight: 'bold', size: 10 } } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+function showPage(p) {
+    document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
+    document.getElementById('page-' + p).classList.remove('hidden');
+    if(p === 'profile') {
+        document.getElementById('btn-back').style.display = 'none';
+        document.getElementById('btn-logout').classList.remove('hidden');
+        displayCard(currentUserData);
+    } else renderSearch();
+}
+
+function enterApp() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('main-app').classList.remove('hidden');
+    showPage('profile');
+}
+function logout() { location.reload(); }
+</script>
+</body>
+</html>
