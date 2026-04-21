@@ -393,11 +393,8 @@ window.onload = () => {
 
 // --- FUNÇÃO PARA CALCULAR A COR BASEADA NO VALOR (0 a 100) ---
 function getDynamicColor(value, alpha = 1) {
-    // Garante que o valor esteja entre 0 e 100
-    const val = Math.max(0, Math.min(100, value));
-    // Mapeia 0-100 para 0-120 na roda de cores HSL
-    // 0 = Vermelho, 60 = Amarelo, 120 = Verde
-    const hue = val * 1.2; 
+    const val = Math.max(1, Math.min(100, value));
+    const hue = val * 1.2; // 1 = Vermelho, 100 = Verde
     return `hsla(${hue}, 85%, 50%, ${alpha})`;
 }
 
@@ -493,13 +490,14 @@ function displayCard(u) {
     let sum = 0; const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ']; const vals = [];
     
     keys.forEach(k => {
-        let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 60;
+        let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 50;
         let avgStars = 0;
         if(u.ratings && u.ratings[k] && u.ratings[k].count > 0) {
             const avgPoints = u.ratings[k].total / u.ratings[k].count;
             avgStars = Math.round(avgPoints / 20);
             baseVal = Math.round((baseVal + avgPoints) / 2);
         }
+        baseVal = Math.max(1, Math.min(100, baseVal)); // Limite de 1 a 100
         sum += baseVal; vals.push(baseVal);
         
         let starsHtml = isOwner ? '' : '<div class="stars-container">';
@@ -520,7 +518,7 @@ function displayCard(u) {
         </div>`;
     });
     
-    const ovr = Math.round(sum/6);
+    const ovr = Math.max(1, Math.min(100, Math.round(sum/6)));
     const ovrColor = getDynamicColor(ovr);
 
     // Colorir Borda e Texto do Status Geral (OVR)
@@ -548,11 +546,12 @@ async function renderSearch() {
     const list = document.getElementById('athlete-list'); list.innerHTML = '';
     
     data?.forEach(u => {
-        let sum = 0; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 60; if(u.ratings?.[k]) val = (val + (u.ratings[k].total/u.ratings[k].count))/2;
-            sum += val;
+let sum = 0; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+            let val = u.stats[k] || 50;
+            if(u.ratings?.[k]) val = (val + (u.ratings[k].total/u.ratings[k].count))/2;
+            sum += Math.max(1, Math.min(100, val));
         });
-        const ovr = Math.round(sum/6);
+        const ovr = Math.max(1, Math.min(100, Math.round(sum/6)));
         const ovrColor = getDynamicColor(ovr);
         const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
         
@@ -579,12 +578,14 @@ async function renderRanking() {
     const { data } = await query;
     if(!data) return;
 
-    const list = data.map(u => {
+const list = data.map(u => {
         let sum = 0; const s = {}; ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 60; if(u.ratings?.[k]) val = Math.round((val + (u.ratings[k].total/u.ratings[k].count))/2);
+            let val = u.stats[k] || 50; 
+            if(u.ratings?.[k]) val = Math.round((val + (u.ratings[k].total/u.ratings[k].count))/2);
+            val = Math.max(1, Math.min(100, val));
             s[k] = val; sum += val;
         });
-        s.OVR = Math.round(sum/6); return {...u, s};
+        s.OVR = Math.max(1, Math.min(100, Math.round(sum/6))); return {...u, s};
     }).sort((a,b) => b.s[stat] - a.s[stat]);
 
     const listEl = document.getElementById('ranking-list'); listEl.innerHTML = '';
