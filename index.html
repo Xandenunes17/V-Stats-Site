@@ -71,6 +71,7 @@ input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border)
         <input type="password" id="auth-pass" placeholder="Senha">
         
         <div id="register-fields" class="hidden">
+            <input type="email" id="reg-email" placeholder="E-mail">
             <select id="reg-pos">
                 <option value="Levantador">Levantador</option>
                 <option value="Oposto">Oposto</option>
@@ -150,17 +151,20 @@ async function handleAuth() {
     if(!nick || !pass) return alert("Preencha apelido e senha!");
 
     if(isRegisterMode) {
+        const email = document.getElementById('reg-email').value.trim();
         const pos = document.getElementById('reg-pos').value;
         const city = document.getElementById('reg-city').value.trim() || "Brasil";
         const team = document.getElementById('reg-team').value.trim() || "Livre";
 
+        if(!email) return alert("Por favor, insira o seu e-mail!");
+
         const { error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, pos, city, team,
+            nick, pass, email, pos, city, team,
             stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, 
             ratings: {}, onboarded: true
         }]);
         
-        if(error) return alert("Erro: Apelido já em uso.");
+        if(error) return alert("Erro: Apelido ou e-mail já em uso.");
         alert("Conta criada!");
         login(nick, pass);
     } else {
@@ -178,7 +182,6 @@ async function login(nick, pass) {
     }
 }
 
-// ... (Restante das funções de busca, radar e display permanecem iguais) ...
 async function renderSearch() {
     const q = document.getElementById('search-input').value.toLowerCase();
     const { data } = await _supabase.from('atletas').select('*').ilike('nick', `%${q}%`).limit(10);
