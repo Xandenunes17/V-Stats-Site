@@ -21,7 +21,7 @@ nav { display: flex; justify-content: space-between; align-items: center; paddin
 .screen { min-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .auth-card { width: 100%; max-width: 400px; border: var(--border); padding: 30px; border-radius: 20px; box-shadow: var(--shadow); background: var(--white); }
 
-input { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); font-size: 16px; }
+input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); font-size: 16px; display: block; }
 
 .btn { 
     background: var(--black); color: var(--white); border: var(--border); 
@@ -31,7 +31,6 @@ input { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border
 }
 .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--black); }
 
-/* ESTRELAS COM ESTADO ACESO */
 .stars-container { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
 .star-btn { cursor: pointer; font-size: 18px; color: #ccc; transition: color 0.2s; }
 .star-btn.active { color: var(--green); text-shadow: 0 0 5px rgba(185, 255, 102, 0.5); }
@@ -70,6 +69,19 @@ input { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border
         <h2 id="auth-title" style="margin-bottom:15px">Entrar</h2>
         <input type="text" id="auth-nick" placeholder="Apelido">
         <input type="password" id="auth-pass" placeholder="Senha">
+        
+        <div id="register-fields" class="hidden">
+            <select id="reg-pos">
+                <option value="Levantador">Levantador</option>
+                <option value="Oposto">Oposto</option>
+                <option value="Ponteiro">Ponteiro</option>
+                <option value="Central">Central</option>
+                <option value="Líbero">Líbero</option>
+            </select>
+            <input type="text" id="reg-city" placeholder="Cidade">
+            <input type="text" id="reg-team" placeholder="Time Atual">
+        </div>
+
         <button class="btn" style="margin-top:15px" onclick="handleAuth()">Confirmar</button>
         <p onclick="toggleAuthMode()" id="auth-toggle" style="text-align:center; margin-top:20px; cursor:pointer; font-size:13px; text-decoration:underline;">Não tem conta? Registre-se</p>
     </div>
@@ -128,18 +140,28 @@ function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
     document.getElementById('auth-title').innerText = isRegisterMode ? "Criar Conta" : "Entrar";
     document.getElementById('auth-toggle').innerText = isRegisterMode ? "Já tem conta? Entrar" : "Não tem conta? Registre-se";
+    document.getElementById('register-fields').classList.toggle('hidden', !isRegisterMode);
 }
 
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
-    if(!nick || !pass) return alert("Preencha tudo!");
+
+    if(!nick || !pass) return alert("Preencha apelido e senha!");
 
     if(isRegisterMode) {
+        const pos = document.getElementById('reg-pos').value;
+        const city = document.getElementById('reg-city').value.trim() || "Brasil";
+        const team = document.getElementById('reg-team').value.trim() || "Livre";
+
         const { error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {}, onboarded: true, city: "Brasil", team: "Livre", pos: "Atleta"
+            nick, pass, pos, city, team,
+            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, 
+            ratings: {}, onboarded: true
         }]);
-        if(error) return alert("Erro ou apelido já existe.");
+        
+        if(error) return alert("Erro: Apelido já em uso.");
+        alert("Conta criada!");
         login(nick, pass);
     } else {
         login(nick, pass);
@@ -156,13 +178,14 @@ async function login(nick, pass) {
     }
 }
 
+// ... (Restante das funções de busca, radar e display permanecem iguais) ...
 async function renderSearch() {
     const q = document.getElementById('search-input').value.toLowerCase();
     const { data } = await _supabase.from('atletas').select('*').ilike('nick', `%${q}%`).limit(10);
     const listEl = document.getElementById('athlete-list');
     listEl.innerHTML = '';
     data?.forEach(u => {
-        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos}</small></div><span>➜</span></div>`;
+        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos} | ${u.city}</small></div><span>➜</span></div>`;
     });
 }
 
@@ -178,17 +201,11 @@ async function loadOther(nick) {
 
 async function rateStat(statKey, stars) {
     if(viewedUserData.nick === currentUserData.nick) return;
-    
     let ratings = viewedUserData.ratings || {};
     if(!ratings[statKey]) ratings[statKey] = { total: 0, count: 0 };
-    
     ratings[statKey].total += (stars * 20);
     ratings[statKey].count += 1;
-
-    // Atualiza no banco
     await _supabase.from('atletas').update({ ratings }).eq('nick', viewedUserData.nick);
-    
-    // Atualiza localmente para ver o efeito imediato
     const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
     displayCard(data);
 }
@@ -209,13 +226,11 @@ function displayCard(u) {
     keys.forEach(k => {
         let baseVal = u.stats[k] || 60;
         let avgRatingStars = 0;
-
         if(u.ratings && u.ratings[k]) {
             const avgPoints = u.ratings[k].total / u.ratings[k].count;
-            avgRatingStars = Math.round(avgPoints / 20); // Transforma pontos em estrelas (1-5)
+            avgRatingStars = Math.round(avgPoints / 20);
             baseVal = Math.round((baseVal + avgPoints) / 2);
         }
-        
         sum += baseVal;
         values.push(baseVal);
 
@@ -223,16 +238,13 @@ function displayCard(u) {
         if(!isOwner) {
             starHtml = `<div class="stars-container">`;
             for(let i=1; i<=5; i++) {
-                // Se a estrela i for menor ou igual à média, ela fica "active"
                 const activeClass = i <= avgRatingStars ? 'active' : '';
                 starHtml += `<span class="star-btn ${activeClass}" onclick="rateStat('${k}', ${i})">★</span>`;
             }
             starHtml += `</div>`;
         }
-
         grid.innerHTML += `<div class="stat-box"><span class="stat-name">${k}</span><span class="stat-num">${baseVal}</span>${starHtml}</div>`;
     });
-
     document.getElementById('card-ovr').innerText = Math.round(sum/6);
     setTimeout(() => initChart(values), 50);
 }
