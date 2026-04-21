@@ -26,12 +26,29 @@ nav { display: flex; justify-content: space-between; align-items: center; paddin
 
 .main-container { width: 95%; max-width: 450px; margin: 20px auto; display: flex; flex-direction: column; gap: 20px; }
 
-.player-card, .auth-card { border: var(--border); border-radius: 25px; background: var(--white); box-shadow: var(--shadow); overflow: hidden; width: 100%; }
+.player-card { border: var(--border); border-radius: 25px; background: var(--white); box-shadow: var(--shadow); overflow: hidden; width: 100%; }
 
-.card-header { display: flex; border-bottom: var(--border); flex-wrap: wrap; }
-.card-left { width: 35%; background: var(--gray); border-right: var(--border); padding: 15px; text-align: center; }
-.card-right { width: 65%; padding: 15px; min-height: 180px; position: relative; }
-.overall-val { font-size: 55px; font-weight: 900; line-height: 1; }
+.card-header { display: flex; border-bottom: var(--border); flex-wrap: wrap; background: var(--white); }
+
+.card-left { 
+    width: 32%; 
+    background: var(--gray); 
+    border-right: var(--border); 
+    padding: 15px 5px; 
+    text-align: center; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.card-right { width: 68%; padding: 15px; position: relative; }
+
+.overall-val { font-size: 60px; font-weight: 900; line-height: 1; margin-bottom: -5px; }
+
+.badges-wrapper { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.img-slot { max-height: 50px; max-width: 55px; object-fit: contain; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.1)); }
+.flag-slot { width: 45px; height: auto; border-radius: 4px; border: 1px solid rgba(0,0,0,0.15); }
 
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
 .stat-box { background: var(--black); color: var(--white); padding: 10px; border-radius: 12px; text-align: center; }
@@ -41,10 +58,6 @@ nav { display: flex; justify-content: space-between; align-items: center; paddin
 .stars-container { display: flex; justify-content: center; gap: 3px; margin-top: 5px; }
 .star-btn { cursor: pointer; font-size: 16px; color: var(--star-off); }
 .star-btn.active { color: var(--green); }
-
-.card-images { margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px; }
-.img-slot { width: 50px; height: 50px; object-fit: contain; margin: 5px auto; display: block; }
-.flag-slot { width: 40px; border: 1px solid #ddd; margin: 5px auto; display: block; }
 
 .athlete-item { border: var(--border); padding: 15px; border-radius: 15px; background: var(--gray); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 4px 4px 0px var(--black); }
 .search-ovr { background: var(--black); color: var(--green); padding: 5px 10px; border-radius: 8px; font-weight: 900; font-size: 18px; border: 1px solid var(--green); }
@@ -98,8 +111,9 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                 <div class="card-header">
                     <div class="card-left">
                         <div class="overall-val" id="card-ovr">00</div>
-                        <div id="card-pos" style="background:var(--green); color:#000; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">POS</div>
-                        <div class="card-images">
+                        <div id="card-pos" style="background:var(--green); color:#000; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; text-transform:uppercase;">POS</div>
+                        
+                        <div class="badges-wrapper">
                             <img id="display-team-logo" class="img-slot" src="" onerror="this.style.display='none'">
                             <img id="display-city-flag" class="flag-slot" src="" onerror="this.style.display='none'">
                         </div>
@@ -107,10 +121,10 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                     <div class="card-right">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
-                                <h2 id="card-nick">NOME</h2>
+                                <h2 id="card-nick" style="font-size: 22px;">NOME</h2>
                                 <p id="card-details" style="font-size:12px; opacity:0.7;">Cidade | Time</p>
                             </div>
-                            <button id="btn-edit-trigger" onclick="toggleEditFields()" style="background:none; border:1px solid #ccc; border-radius:5px; padding:2px 5px;">⚙️</button>
+                            <button id="btn-edit-trigger" onclick="toggleEditFields()" style="background:none; border:1px solid #ccc; border-radius:5px; padding:2px 5px; cursor:pointer;">⚙️</button>
                         </div>
 
                         <div id="edit-profile-area" class="hidden" style="margin-top:10px; background:var(--gray); padding:10px; border-radius:10px;">
@@ -126,9 +140,9 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                                 <option value="Amargosa">Amargosa</option>
                                 <option value="Salvador">Salvador</option>
                             </select>
-                            <button class="btn" style="margin-top:10px; font-size:12px;" onclick="saveProfileUpdates()">Salvar</button>
+                            <button class="btn" style="margin-top:10px; font-size:12px;" onclick="saveProfileUpdates()">Salvar Perfil</button>
                         </div>
-                        <div style="height:130px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
+                        <div style="height:140px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
                     </div>
                 </div>
                 <div id="card-stats-grid" class="stats-grid"></div>
@@ -148,12 +162,11 @@ const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co';
 const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 
-// INTEGRAÇÃO COM SEU REPOSITÓRIO GITHUB
 const GITHUB_BASE = "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets";
 
 const BIBLIOTECA_IMAGENS = {
     times: { 
-        "União Vôlei": `${GITHUB_BASE}/União-Vôlei-Logo.png`, 
+        "União Vôlei": `${GITHUB_BASE}/Logo-Uniao-Volei.png`, 
         "Vôlei Mar": `${GITHUB_BASE}/Logo-Volei-Mar.png`, 
         "Livre": "" 
     },
@@ -182,13 +195,32 @@ async function handleAuth() {
         alert("Conta criada!"); location.reload();
     } else {
         const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
-        if(data && data.pass === pass) { currentUserData = data; enterApp(); } else alert("Erro no login!");
+        if(data && data.pass === pass) { currentUserData = data; enterApp(); } else alert("Erro!");
     }
 }
 
+// FUNÇÃO ATUALIZADA PARA SALVAR E JÁ EXIBIR AS IMAGENS
 async function saveProfileUpdates() {
-    await _supabase.from('atletas').update({ team: document.getElementById('update-team').value, city: document.getElementById('update-city').value }).eq('nick', currentUserData.nick);
-    location.reload();
+    const newTeam = document.getElementById('update-team').value;
+    const newCity = document.getElementById('update-city').value;
+
+    const { error } = await _supabase
+        .from('atletas')
+        .update({ team: newTeam, city: newCity })
+        .eq('nick', currentUserData.nick);
+
+    if (error) {
+        alert("Erro ao salvar!");
+    } else {
+        // Atualiza os dados locais imediatamente
+        currentUserData.team = newTeam;
+        currentUserData.city = newCity;
+        
+        // Fecha o menu e redesenha o card
+        toggleEditFields();
+        displayCard(currentUserData);
+        alert("Perfil atualizado!");
+    }
 }
 
 async function rateStat(statKey, stars) {
@@ -205,12 +237,14 @@ async function rateStat(statKey, stars) {
 function displayCard(u) {
     viewedUserData = u;
     const isOwner = (u.nick === currentUserData.nick);
-    document.getElementById('card-nick').innerText = u.nick.toUpperCase();
+    document.getElementById('card-nick').innerText = u.nick.toLowerCase();
     document.getElementById('card-pos').innerText = u.pos;
     document.getElementById('card-details').innerText = `${u.city} | ${u.team}`;
     
+    // Atualização das Imagens pela Biblioteca
     document.getElementById('display-team-logo').src = BIBLIOTECA_IMAGENS.times[u.team] || '';
     document.getElementById('display-city-flag').src = BIBLIOTECA_IMAGENS.cidades[u.city] || '';
+    
     document.getElementById('display-team-logo').style.display = BIBLIOTECA_IMAGENS.times[u.team] ? 'block' : 'none';
     document.getElementById('display-city-flag').style.display = BIBLIOTECA_IMAGENS.cidades[u.city] ? 'block' : 'none';
 
@@ -256,7 +290,7 @@ async function renderSearch() {
             sum += val;
         });
         const ovr = Math.round(sum/6);
-        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos} | ${u.city}</small></div><div class="search-ovr">${ovr}</div></div>`;
+        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toLowerCase()}</strong><br><small>${u.pos} | ${u.city}</small></div><div class="search-ovr">${ovr}</div></div>`;
     });
 }
 
