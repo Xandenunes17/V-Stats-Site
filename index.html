@@ -575,15 +575,17 @@ async function renderSearch() {
     
     data?.forEach(u => {
         let sum = 0; 
-        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 50;
-            if(u.ratings && u.ratings[k]) {
-                const votos = Object.values(u.ratings[k]);
-                if(votos.length > 0) {
-                    val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length)) / 2;
-                }
-            }
-            sum += Math.max(1, Math.min(100, val));
+['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+    let val = u.stats[k] || 50;
+    if(u.ratings && u.ratings[k]) {
+        const votos = Object.values(u.ratings[k]);
+        if(votos.length > 0) {
+            const mediaComunidade = votos.reduce((a,b)=>a+b,0) / votos.length;
+            // APLIQUE O MESMO PESO AQUI (Exemplo Peso 3):
+            val = (val + (mediaComunidade * 3)) / 4;
+        }
+    }
+    sum += Math.max(1, Math.min(100, val));
         });
         const ovr = Math.round(sum/6);
         const ovrColor = getDynamicColor(ovr);
@@ -613,18 +615,21 @@ async function renderRanking() {
     if(!data) return;
 
 const list = data.map(u => {
-        let sum = 0; const s = {}; 
-        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 50; 
-            if(u.ratings && u.ratings[k]) {
-                const votos = Object.values(u.ratings[k]);
-                if(votos.length > 0) {
-                    val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length)) / 2;
-                }
+    let sum = 0; const s = {}; 
+    ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
+        let val = u.stats[k] || 50; 
+        if(u.ratings && u.ratings[k]) {
+            const votos = Object.values(u.ratings[k]);
+            if(votos.length > 0) {
+                const mediaComunidade = votos.reduce((a,b)=>a+b,0) / votos.length;
+                // APLIQUE O MESMO PESO AQUI (Exemplo Peso 3):
+                val = (val + (mediaComunidade * 3)) / 4;
             }
-            val = Math.max(1, Math.min(100, val));
-            s[k] = val; sum += val;
-        });
+        }
+        val = Math.max(1, Math.min(100, val));
+        s[k] = Math.round(val); 
+        sum += val;
+    });
         s.OVR = Math.round(sum/6); 
         return {...u, s};
     }).sort((a,b) => b.s[stat] - a.s[stat]);
