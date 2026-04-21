@@ -516,12 +516,11 @@ function displayCard(u) {
             const votosArray = Object.values(u.ratings[k]);
             
             if (votosArray.length > 0) {
-                const somaComunidade = votosArray.reduce((acc, nota) => acc + nota, 0);
-                const mediaComunidade = somaComunidade / votosArray.length;
+                const mediaComunidade = votosArray.reduce((a, b) => a + b, 0) / votosArray.length;
                 
                 // Média final: (Base + Média da Comunidade) / 2
-                baseVal = Math.round((baseVal + mediaComunidade) / 2);
-                avgStars = Math.round(mediaComunidade / 20);
+                baseVal = Math.round((baseVal + (mediaComunidade * 3)) / 4);
+                avgStars = Math.round(mediaComunidade / 10);
             }
         }
         
