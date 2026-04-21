@@ -86,7 +86,7 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
         <input type="password" id="auth-pass" placeholder="Senha">
         <div id="register-fields" class="hidden">
             <input type="email" id="reg-email" placeholder="E-mail">
-            <select id="reg-pos">
+            <select id="reg-pos-init">
                 <option value="Levantador">Levantador</option>
                 <option value="Oposto">Oposto</option>
                 <option value="Ponteiro">Ponteiro</option>
@@ -128,6 +128,14 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
                         </div>
 
                         <div id="edit-profile-area" class="hidden" style="margin-top:10px; background:var(--gray); padding:10px; border-radius:10px;">
+                            <label style="font-size:10px; font-weight:bold;">Posição:</label>
+                            <select id="update-pos">
+                                <option value="Levantador">Levantador</option>
+                                <option value="Oposto">Oposto</option>
+                                <option value="Ponteiro">Ponteiro</option>
+                                <option value="Central">Central</option>
+                                <option value="Líbero">Líbero</option>
+                            </select>
                             <label style="font-size:10px; font-weight:bold;">Time:</label>
                             <select id="update-team">
                                 <option value="Livre">Livre</option>
@@ -158,10 +166,10 @@ input, select { width: 100%; padding: 12px; margin: 5px 0; border: var(--border)
 </div>
 
 <script>
+// --- CONFIGURAÇÃO ---
 const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co'; 
 const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
-
 const GITHUB_BASE = "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets";
 
 const BIBLIOTECA_IMAGENS = {
@@ -183,43 +191,78 @@ let radarChart = null;
 let isDarkMode = false;
 let isRegisterMode = false;
 
+// --- PERSISTÊNCIA DE LOGIN ---
+window.onload = () => {
+    const savedUser = localStorage.getItem('vstats_user');
+    if (savedUser) {
+        currentUserData = JSON.parse(savedUser);
+        enterApp();
+    }
+};
+
 function toggleDarkMode() { isDarkMode = !isDarkMode; document.body.classList.toggle('dark-mode', isDarkMode); if(viewedUserData) displayCard(viewedUserData); }
 function toggleAuthMode() { isRegisterMode = !isRegisterMode; document.getElementById('auth-title').innerText = isRegisterMode ? "Criar Conta" : "Entrar"; document.getElementById('register-fields').classList.toggle('hidden', !isRegisterMode); }
-function toggleEditFields() { document.getElementById('edit-profile-area').classList.toggle('hidden'); }
+function toggleEditFields() { 
+    if(!document.getElementById('edit-profile-area').classList.contains('hidden')) {
+        document.getElementById('edit-profile-area').classList.add('hidden');
+        return;
+    }
+    // Preenche os campos com o que já está salvo
+    document.getElementById('update-pos').value = currentUserData.pos;
+    document.getElementById('update-team').value = currentUserData.team;
+    document.getElementById('update-city').value = currentUserData.city;
+    document.getElementById('edit-profile-area').classList.remove('hidden');
+}
 
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
+    
     if(isRegisterMode) {
-        await _supabase.from('atletas').insert([{ nick, pass, email: document.getElementById('reg-email').value, pos: document.getElementById('reg-pos').value, city: "Brasil", team: "Livre", stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {} }]);
-        alert("Conta criada!"); location.reload();
+        const pos = document.getElementById('reg-pos-init').value;
+        const { data, error } = await _supabase.from('atletas').insert([{ 
+            nick, pass, email: document.getElementById('reg-email').value, 
+            pos: pos, city: "Brasil", team: "Livre", 
+            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {} 
+        }]).select();
+        
+        if(error) return alert("Erro ao criar conta!");
+        currentUserData = data[0];
+        localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
+        enterApp();
     } else {
         const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
-        if(data && data.pass === pass) { currentUserData = data; enterApp(); } else alert("Erro!");
+        if(data && data.pass === pass) { 
+            currentUserData = data; 
+            localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
+            enterApp(); 
+        } else alert("Dados incorretos!");
     }
 }
 
-// FUNÇÃO ATUALIZADA PARA SALVAR E JÁ EXIBIR AS IMAGENS
+// --- SALVAMENTO CORRIGIDO ---
 async function saveProfileUpdates() {
     const newTeam = document.getElementById('update-team').value;
     const newCity = document.getElementById('update-city').value;
+    const newPos = document.getElementById('update-pos').value;
 
     const { error } = await _supabase
         .from('atletas')
-        .update({ team: newTeam, city: newCity })
+        .update({ team: newTeam, city: newCity, pos: newPos })
         .eq('nick', currentUserData.nick);
 
     if (error) {
-        alert("Erro ao salvar!");
+        alert("Erro ao salvar no Supabase!");
     } else {
-        // Atualiza os dados locais imediatamente
+        // Atualiza objeto local e localStorage
         currentUserData.team = newTeam;
         currentUserData.city = newCity;
+        currentUserData.pos = newPos;
+        localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
         
-        // Fecha o menu e redesenha o card
-        toggleEditFields();
+        document.getElementById('edit-profile-area').classList.add('hidden');
         displayCard(currentUserData);
-        alert("Perfil atualizado!");
+        alert("Perfil atualizado com sucesso!");
     }
 }
 
@@ -241,7 +284,6 @@ function displayCard(u) {
     document.getElementById('card-pos').innerText = u.pos;
     document.getElementById('card-details').innerText = `${u.city} | ${u.team}`;
     
-    // Atualização das Imagens pela Biblioteca
     document.getElementById('display-team-logo').src = BIBLIOTECA_IMAGENS.times[u.team] || '';
     document.getElementById('display-city-flag').src = BIBLIOTECA_IMAGENS.cidades[u.city] || '';
     
@@ -308,7 +350,7 @@ function initChart(data) {
 async function loadOther(nick) { const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single(); if(data) { showPage('profile'); displayCard(data); document.getElementById('btn-back').style.display='block'; document.getElementById('btn-logout').classList.add('hidden'); } }
 function showPage(p) { document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden')); document.getElementById('page-' + p).classList.remove('hidden'); if(p === 'profile') { displayCard(currentUserData); document.getElementById('btn-back').style.display='none'; document.getElementById('btn-logout').classList.remove('hidden'); } else renderSearch(); }
 function enterApp() { document.getElementById('auth-screen').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden'); document.getElementById('nav-bar').classList.remove('hidden'); showPage('profile'); }
-function logout() { location.reload(); }
+function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
 </script>
 </body>
 </html>
