@@ -25,17 +25,24 @@ nav { display: flex; justify-content: space-between; align-items: center; paddin
 .logo { font-weight: 900; font-size: 22px; color: var(--text); }
 
 .screen { min-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-.auth-card { width: 100%; max-width: 400px; border: var(--border); padding: 30px; border-radius: 20px; box-shadow: var(--shadow); background: var(--white); }
 
-input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); font-size: 16px; display: block; outline: none; }
+/* Content Wrapper para manter o formato de Card */
+.card-container { width: 100%; max-width: 420px; margin: 0 auto; }
 
-.btn { 
-    background: var(--black); color: var(--white); border: var(--border); 
-    padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold;
-    box-shadow: 4px 4px 0px var(--black); width: 100%; transition: 0.1s;
-    text-align: center; display: block;
-}
-.btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--black); }
+.player-card { border: var(--border); border-radius: 25px; background: var(--white); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+.card-header { display: flex; border-bottom: var(--border); flex-wrap: wrap; }
+.card-left { width: 35%; background: var(--gray); border-right: var(--border); padding: 20px; text-align: center; }
+.card-right { width: 65%; padding: 20px; min-height: 200px; color: var(--text); }
+.overall-val { font-size: 55px; font-weight: 900; line-height: 1; color: var(--text); }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px; }
+.stat-box { background: var(--black); color: var(--white); padding: 10px; border-radius: 12px; text-align: center; border: var(--border); }
+.stat-name { font-size: 10px; color: var(--green); font-weight: bold; display: block; text-transform: uppercase; }
+.stat-num { font-size: 22px; font-weight: 900; }
+
+.stars-container { display: flex; justify-content: center; gap: 3px; margin-top: 5px; }
+.star-btn { cursor: pointer; font-size: 16px; color: var(--star-off); }
+.star-btn.active { color: var(--green); }
 
 .athlete-item { border: var(--border); padding: 15px; border-radius: 15px; background: var(--gray); margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 4px 4px 0px var(--black); color: var(--text); }
 .search-ovr { background: var(--black); color: var(--green); padding: 5px 10px; border-radius: 8px; font-weight: 900; font-size: 18px; border: 1px solid var(--green); }
@@ -43,7 +50,11 @@ input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border)
 .bottom-nav { position: fixed; bottom: 0; width: 100%; display: flex; background: var(--white); border-top: var(--border); padding: 10px 0; z-index: 100; }
 .nav-item { flex: 1; text-align: center; font-size: 11px; font-weight: bold; cursor: pointer; color: var(--text); }
 
+input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border); border-radius: 10px; background: var(--white); color: var(--text); font-size: 16px; outline: none; }
+.btn { background: var(--black); color: var(--white); border: var(--border); padding: 12px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%; text-align: center; display: block; margin-top: 10px; }
+
 .hidden { display: none !important; }
+@media (max-width: 480px) { .card-left, .card-right { width: 100%; border-right: none; } .card-left { border-bottom: var(--border); } }
 </style>
 </head>
 <body>
@@ -54,11 +65,10 @@ input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border)
 </nav>
 
 <div id="auth-screen" class="screen">
-    <div class="auth-card">
-        <h2 id="auth-title" style="margin-bottom:15px; color: var(--text);">Entrar</h2>
+    <div class="card-container" style="padding: 25px; border: var(--border); border-radius: 20px; background: var(--white); box-shadow: var(--shadow);">
+        <h2 id="auth-title" style="margin-bottom:15px;">Entrar</h2>
         <input type="text" id="auth-nick" placeholder="Apelido">
         <input type="password" id="auth-pass" placeholder="Senha">
-        
         <div id="reg-fields" class="hidden">
             <input type="email" id="reg-email" placeholder="E-mail">
             <select id="reg-pos">
@@ -68,38 +78,35 @@ input, select { width: 100%; padding: 12px; margin: 8px 0; border: var(--border)
                 <option value="Central">Central</option>
                 <option value="Líbero">Líbero</option>
             </select>
-            <input type="text" id="reg-city" placeholder="Cidade">
-            <input type="text" id="reg-team" placeholder="Time">
         </div>
-
-        <button class="btn" style="margin-top:15px" onclick="handleAuth()">Confirmar</button>
-        <p onclick="toggleAuthMode()" id="auth-toggle" style="text-align:center; margin-top:20px; cursor:pointer; font-size:13px; text-decoration:underline; color: var(--text);">Não tem conta? Registre-se</p>
+        <button class="btn" onclick="handleAuth()">Confirmar</button>
+        <p onclick="toggleAuthMode()" id="auth-toggle" style="text-align:center; margin-top:20px; cursor:pointer; font-size:13px; text-decoration:underline;">Não tem conta? Registre-se</p>
     </div>
 </div>
 
 <div id="main-app" class="hidden">
-    <div id="page-search" class="app-page card-container">
-        <h2 style="margin-bottom:15px; color: var(--text);">🔍 Mercado de Atletas</h2>
+    <div id="page-search" class="app-page card-container" style="padding-top:20px;">
+        <h2 style="margin-bottom:15px;">🔍 Mercado</h2>
         <input type="text" id="search-input" placeholder="Buscar por apelido..." oninput="renderSearch()">
         <div id="athlete-list" style="margin-top:15px; padding-bottom:100px;"></div>
     </div>
 
-    <div id="page-profile" class="app-page card-container hidden">
-        <button class="btn" id="btn-back" onclick="showPage('search')" style="margin-bottom:15px; display:none; background:var(--gray); color:var(--text); box-shadow:none; width: auto;">← Voltar</button>
-        <div class="player-card" style="border: var(--border); border-radius: 25px; background: var(--white); box-shadow: 10px 10px 0px var(--black); overflow: hidden;">
-            <div class="card-header" style="display: flex; border-bottom: var(--border); flex-wrap: wrap;">
-                <div class="card-left" style="width: 35%; background: var(--gray); border-right: var(--border); padding: 20px; text-align: center;">
-                    <div class="overall-val" id="card-ovr" style="font-size: 60px; font-weight: 900; color: var(--text);">00</div>
+    <div id="page-profile" class="app-page card-container hidden" style="padding-top:20px;">
+        <button class="btn" id="btn-back" onclick="showPage('search')" style="margin-bottom:15px; display:none; background:var(--gray); color:var(--text); width: auto; padding: 5px 15px;">← Voltar</button>
+        <div class="player-card">
+            <div class="card-header">
+                <div class="card-left">
+                    <div class="overall-val" id="card-ovr">00</div>
                     <div id="card-pos" style="background:var(--green); color:#191A23; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">POS</div>
                 </div>
-                <div class="card-right" style="width: 65%; padding: 20px; min-height: 200px; color: var(--text);">
+                <div class="card-right">
                     <h2 id="card-nick">NOME</h2>
-                    <p id="card-details">Cidade | Time</p>
+                    <p id="card-details">Brasil | Livre</p>
                     <div style="height:140px; margin-top:10px;"><canvas id="radarChart"></canvas></div>
                 </div>
             </div>
-            <div id="card-stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px;"></div>
-            <div style="padding:20px"><button class="btn" id="btn-logout" style="background:#ff4444; color: white;" onclick="logout()">Sair</button></div>
+            <div id="card-stats-grid" class="stats-grid"></div>
+            <div style="padding:20px"><button class="btn" id="btn-logout" style="background:#ff4444; color:white;" onclick="logout()">Sair</button></div>
         </div>
     </div>
 
@@ -135,37 +142,21 @@ function toggleAuthMode() {
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
-    if(!nick || !pass) return alert("Preencha apelido e senha!");
+    if(!nick || !pass) return alert("Preencha tudo!");
 
     if(isRegisterMode) {
         const email = document.getElementById('reg-email').value.trim();
         const pos = document.getElementById('reg-pos').value;
-        const city = document.getElementById('reg-city').value.trim() || "Brasil";
-        const team = document.getElementById('reg-team').value.trim() || "Livre";
-
-        if(!email) return alert("E-mail é obrigatório!");
-
-        // Tenta inserir. Se der erro, o alert mostrará a mensagem técnica do Supabase
         const { error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, email, pos, city, team,
-            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, 
-            ratings: {}, onboarded: true
+            nick, pass, email, pos, city: "Brasil", team: "Livre",
+            stats: {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60}, ratings: {}, onboarded: true
         }]);
-        
-        if(error) {
-            console.error(error);
-            return alert("Erro no registro: " + error.message);
-        }
-        alert("Sucesso! Faça login.");
-        toggleAuthMode();
+        if(error) return alert("Erro no registro: " + error.message);
+        alert("Sucesso! Faça login."); toggleAuthMode();
     } else {
-        const { data, error } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
-        if(data && data.pass === pass) {
-            currentUserData = data;
-            enterApp();
-        } else {
-            alert("Dados incorretos ou erro de conexão.");
-        }
+        const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
+        if(data && data.pass === pass) { currentUserData = data; enterApp(); }
+        else { alert("Dados incorretos."); }
     }
 }
 
@@ -174,9 +165,8 @@ async function renderSearch() {
     const { data } = await _supabase.from('atletas').select('*').ilike('nick', `%${q}%`).limit(10);
     const listEl = document.getElementById('athlete-list');
     listEl.innerHTML = '';
-    
     data?.forEach(u => {
-        const s = u.stats || {ATA:60,LEV:60,BLO:60,DEF:60,PAS:60,SAQ:60};
+        const s = u.stats;
         let sum = 0;
         Object.keys(s).forEach(k => {
             let val = s[k];
@@ -184,12 +174,7 @@ async function renderSearch() {
             sum += val;
         });
         const ovr = Math.round(sum / 6);
-
-        listEl.innerHTML += `
-            <div class="athlete-item" onclick="loadOther('${u.nick}')">
-                <div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos || 'Atleta'}</small></div>
-                <div class="search-ovr">${ovr}</div>
-            </div>`;
+        listEl.innerHTML += `<div class="athlete-item" onclick="loadOther('${u.nick}')"><div><strong>${u.nick.toUpperCase()}</strong><br><small>${u.pos}</small></div><div class="search-ovr">${ovr}</div></div>`;
     });
 }
 
@@ -223,37 +208,39 @@ function displayCard(u) {
     
     const grid = document.getElementById('card-stats-grid');
     grid.innerHTML = '';
-    let sum = 0;
-    const values = [];
     const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
+    let sum = 0;
+    const vals = [];
 
     keys.forEach(k => {
-        let val = u.stats[k] || 60;
-        let stars = 0;
+        let baseVal = u.stats[k] || 60;
+        let avgStars = 0;
         if(u.ratings && u.ratings[k]) {
-            const avg = u.ratings[k].total / u.ratings[k].count;
-            stars = Math.round(avg / 20);
-            val = Math.round((val + avg) / 2);
+            const avgPoints = u.ratings[k].total / u.ratings[k].count;
+            avgStars = Math.round(avgPoints / 20);
+            baseVal = Math.round((baseVal + avgPoints) / 2);
         }
-        sum += val;
-        values.push(val);
+        sum += baseVal;
+        vals.push(baseVal);
 
-        let starHtml = '';
+        let starsHtml = '';
         if(!isOwner) {
-            starHtml = `<div style="display:flex; gap:2px; justify-content:center; margin-top:5px;">`;
+            starsHtml = `<div class="stars-container">`;
             for(let i=1; i<=5; i++) {
-                starHtml += `<span style="cursor:pointer; color:${i<=stars?'var(--green)':'var(--star-off)'};" onclick="rateStat('${k}', ${i})">★</span>`;
+                const active = i <= avgStars ? 'active' : '';
+                starsHtml += `<span class="star-btn ${active}" onclick="rateStat('${k}', ${i})">★</span>`;
             }
-            starHtml += `</div>`;
+            starsHtml += `</div>`;
         }
-        grid.innerHTML += `<div style="background:var(--black); color:white; padding:10px; border-radius:12px; text-align:center; border:var(--border);">
-            <span style="font-size:10px; color:var(--green); font-weight:bold; display:block;">${k}</span>
-            <span style="font-size:22px; font-weight:900;">${val}</span>
-            ${starHtml}
+
+        grid.innerHTML += `<div class="stat-box">
+            <span class="stat-name">${k}</span>
+            <span class="stat-num">${baseVal}</span>
+            ${starsHtml}
         </div>`;
     });
     document.getElementById('card-ovr').innerText = Math.round(sum/6);
-    setTimeout(() => initChart(values), 50);
+    setTimeout(() => initChart(vals), 50);
 }
 
 function initChart(data) {
@@ -268,7 +255,7 @@ function initChart(data) {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: isDarkMode?'rgba(185, 255, 102, 0.2)':'rgba(0,0,0,0.1)' }, pointLabels: { color: color, font: { weight: 'bold', size: 10 } } } },
+            scales: { r: { min: 0, max: 100, ticks: { display: false }, grid: { color: isDarkMode?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)' }, pointLabels: { color: color, font: { weight: 'bold', size: 10 } } } },
             plugins: { legend: { display: false } }
         }
     });
