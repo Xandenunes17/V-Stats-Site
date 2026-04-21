@@ -459,14 +459,31 @@ async function saveProfileUpdates() {
 
 async function rateStat(statKey, stars) {
     if(!viewedUserData || viewedUserData.nick === currentUserData.nick) return;
-    const { data: current } = await _supabase.from('atletas').select('ratings').eq('nick', viewedUserData.nick).single();
-    let ratings = current?.ratings || {};
-    if(!ratings[statKey]) ratings[statKey] = { total: 0, count: 0 };
-    ratings[statKey].total += (stars * 20);
-    ratings[statKey].count += 1;
-    await _supabase.from('atletas').update({ ratings }).eq('nick', viewedUserData.nick);
-    const { data: updated } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
-    displayCard(updated);
+
+    const points = stars * 20; // Converte 1-5 estrelas para 20-100 pontos
+    const voterNick = currentUserData.nick; // Quem está votando
+
+    // Pega os ratings atuais do atleta que está sendo visualizado
+    let ratings = viewedUserData.ratings || {};
+
+    // Se ainda não existir votos para esse atributo (ex: ATA), cria o objeto
+    if (!ratings[statKey]) ratings[statKey] = {};
+
+    // A MÁGICA: Em vez de somar, nós atribuímos ao nome do usuário.
+    // Se o voterNick já existia, o valor antigo é apagado e o novo entra no lugar.
+    ratings[statKey][voterNick] = points;
+
+    // Atualiza o Supabase
+    const { error } = await _supabase
+        .from('atletas')
+        .update({ ratings: ratings })
+        .eq('nick', viewedUserData.nick);
+    
+    if(!error) {
+        // Atualiza a visualização local para mostrar a nova média instantaneamente
+        const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
+        displayCard(data);
+    }
 }
 
 function displayCard(u) {
@@ -490,28 +507,44 @@ function displayCard(u) {
     let sum = 0; const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ']; const vals = [];
     
     keys.forEach(k => {
+        // Pega o valor base (ex: 50)
         let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 50;
         let avgStars = 0;
-        if(u.ratings && u.ratings[k] && u.ratings[k].count > 0) {
-            const avgPoints = u.ratings[k].total / u.ratings[k].count;
-            avgStars = Math.round(avgPoints / 20);
-            baseVal = Math.round((baseVal + avgPoints) / 2);
+
+        // NOVO CÁLCULO: Se houver avaliações no novo formato { "nick": nota }
+        if (u.ratings && u.ratings[k]) {
+            const votosArray = Object.values(u.ratings[k]); // Extrai apenas os números (notas)
+            
+            if (votosArray.length > 0) {
+                // Soma todas as notas e divide pela quantidade de pessoas que votaram
+                const somaComunidade = votosArray.reduce((acc, nota) => acc + nota, 0);
+                const mediaComunidade = somaComunidade / votosArray.length;
+                
+                // Calcula a média final: (Base do Atleta + Média da Comunidade) / 2
+                baseVal = Math.round((baseVal + mediaComunidade) / 2);
+                
+                // Define as estrelas visuais (1 a 5) baseada na média da comunidade
+                avgStars = Math.round(mediaComunidade / 20);
+            }
         }
-        baseVal = Math.max(1, Math.min(100, baseVal)); // Limite de 1 a 100
-        sum += baseVal; vals.push(baseVal);
         
+        // Garante que o valor final respeite o limite de 1 a 100
+        baseVal = Math.max(1, Math.min(100, baseVal));
+        sum += baseVal; 
+        vals.push(baseVal);
+        
+        // Cores e HTML (Mantendo seu estilo)
+        const dynamicColor = getDynamicColor(baseVal);
         let starsHtml = isOwner ? '' : '<div class="stars-container">';
         if(!isOwner) {
-            for(let i=1; i<=5; i++) starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`;
+            for(let i=1; i<=5; i++) {
+                starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`;
+            }
             starsHtml += '</div>';
         }
 
-        // Aplicando cor dinâmica na caixa de status
-        const dynamicColor = getDynamicColor(baseVal);
-        const boxBorderColor = getDynamicColor(baseVal, 0.3);
-
         grid.innerHTML += `
-        <div class="stat-box" style="border-color: ${boxBorderColor}; background: rgba(0,0,0,0.2);">
+        <div class="stat-box" style="border-color: ${getDynamicColor(baseVal, 0.3)};">
             <span class="stat-name" style="color: ${dynamicColor};">${k}</span>
             <span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>
             ${starsHtml}
