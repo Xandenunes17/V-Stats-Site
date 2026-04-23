@@ -172,29 +172,57 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     display: flex; align-items: center; justify-content: center;
     padding: 20px;
 }
+/* Container do Modal com efeito Glassmorphism */
 .modal-content {
-    background: var(--bg-panel); border: 1px solid var(--primary);
-    box-shadow: var(--glow); width: 100%; max-width: 900px;
-    max-height: 90vh; overflow-y: auto; border-radius: 12px;
-    padding: 25px; position: relative;
+    background: #0F1115; /* Fundo bem escuro */
+    border: 1px solid var(--primary);
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.2);
+    border-radius: 16px;
+    padding: 30px;
+    position: relative;
 }
-.close-modal {
-    position: absolute; top: 15px; right: 15px;
-    color: var(--white); font-size: 24px; cursor: pointer;
+
+/* Tabela Profissional */
+.stats-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px; /* Espaçamento entre as linhas */
 }
-.stats-table-wrapper { width: 100%; overflow-x: auto; margin-top: 20px; }
-.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }
-.stats-table th { 
-    background: var(--bg-card); color: var(--primary); 
-    font-family: 'Orbitron', sans-serif; padding: 12px; 
-    border-bottom: 2px solid var(--primary);
+
+.stats-table th {
+    background: transparent;
+    color: #94A3B8; /* Cinza para os títulos */
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 10px;
+    border-bottom: 1px solid #2A2F36;
 }
-.stats-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--white); }
-.val-ponto { color: var(--primary); font-weight: bold; }
-.val-erro { color: #ef4444; font-weight: bold; }
-.eficiencia-badge { 
-    background: var(--bg-main); padding: 4px 8px; 
-    border-radius: 4px; border: 1px solid var(--primary);
+
+.stats-table td {
+    background: #1A1F26; /* Fundo de cada linha */
+    padding: 15px 10px;
+    color: white;
+}
+
+/* Arredondar as pontas das linhas */
+.stats-table td:first-child { border-radius: 8px 0 0 8px; text-align: left; font-weight: bold; }
+.stats-table td:last-child { border-radius: 0 8px 8px 0; }
+
+/* Destaque de Números */
+.val-ponto { color: var(--primary); font-weight: 800; font-size: 15px; }
+.val-divider { color: #4B5563; margin: 0 4px; }
+.val-erro { color: #FF4D4D; font-weight: 500; }
+
+/* Badge de Eficiência */
+.ef-badge {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: 'Orbitron';
+    font-size: 11px;
 }
 
 </style>
@@ -755,22 +783,27 @@ async function downloadMatchCSV(matchId, matchName) {
     let csv = "\uFEFFATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATA_PONTO;ATA_ERRO;BLO_PONTO;BLO_ERRO;EFICIENCIA\n";
 
     partida.atletas.forEach(nick => {
-        const evs = eventos.filter(e => e.atleta === nick);
-        const sA = evs.filter(e => e.fundamento==='SAQ' && e.resultado==='ACE').length;
-        const sE = evs.filter(e => e.fundamento==='SAQ' && e.resultado==='ERRO').length;
-        const rP = evs.filter(e => e.fundamento==='REC' && e.resultado==='PERFEITA').length;
-        const rE = evs.filter(e => e.fundamento==='REC' && e.resultado==='ERRO').length;
-        const aP = evs.filter(e => e.fundamento==='ATA' && e.resultado==='PONTO').length;
-        const aE = evs.filter(e => e.fundamento==='ATA' && e.resultado==='ERRO').length;
-        const bP = evs.filter(e => e.fundamento==='BLO' && e.resultado==='PONTO').length;
-        const bE = evs.filter(e => e.fundamento==='BLO' && e.resultado==='ERRO').length;
-        
-        const total = sA + sE + rP + rE + aP + aE + bP + bE;
-        const acertos = sA + rP + aP + bP;
-        const ef = total > 0 ? ((acertos / total) * 100).toFixed(1) : 0;
+    const evs = eventos.filter(e => e.atleta === nick);
+    
+    // ... (os cálculos de sA, sE, rP, etc, continuam iguais) ...
 
-        csv += `${nick};${sA};${sE};${rP};${rE};${aP};${aE};${bP};${bE};${ef}%\n`;
-    });
+    const total = sA + sE + rP + rE + aP + aE + bP + bE;
+    const ef = total > 0 ? (((sA + rP + aP + bP) / total) * 100).toFixed(0) : 0;
+
+    // ESTA É A PARTE QUE DEVES SUBSTITUIR (o innerHTML):
+    tbody.innerHTML += `
+        <tr>
+            <td style="font-family: 'Orbitron'; font-size: 12px; text-align: left; background: #1A1F26; border-radius: 8px 0 0 8px; padding-left: 15px;">
+                ${nick.toUpperCase()}
+            </td>
+            <td><span class="val-ponto">${sA}</span><span class="val-divider">|</span><span class="val-erro">${sE}</span></td>
+            <td><span class="val-ponto">${rP}</span><span class="val-divider">|</span><span class="val-erro">${rE}</span></td>
+            <td><span class="val-ponto">${aP}</span><span class="val-divider">|</span><span class="val-erro">${aE}</span></td>
+            <td><span class="val-ponto">${bP}</span><span class="val-divider">|</span><span class="val-erro">${bE}</span></td>
+            <td style="border-radius: 0 8px 8px 0;"><span class="ef-badge">${ef}%</span></td>
+        </tr>
+    `;
+});
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -779,16 +812,20 @@ async function downloadMatchCSV(matchId, matchName) {
     link.click();
 }
 
-// --- CARREGAR HISTÓRICO ATUALIZADO ---
+// --- VERSÃO CORRIGIDA DA FUNÇÃO ---
 async function loadMatchHistory(u) {
     const historyContainer = document.getElementById('history-list');
     historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Carregando partidas...</p>';
 
-    let query = _supabase.from('partidas').select('*');
-    if (u.role === 'treinador') query = query.eq('treinador', u.nick);
-    else query = query.contains('atletas', [u.nick]);
+    // Esta é a mudança principal: 
+    // Buscamos partidas onde o nick do usuário é o treinador OU está contido na lista de atletas
+    const { data, error } = await _supabase
+        .from('partidas')
+        .select('*')
+        .or(`treinador.eq.${u.nick},atletas.cs.{"${u.nick}"}`) 
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-    const { data, error } = await query.order('created_at', { ascending: false }).limit(10);
     historyContainer.innerHTML = '';
 
     if (!data || data.length === 0) {
@@ -810,7 +847,6 @@ async function loadMatchHistory(u) {
         `;
     });
 }
-
 // --- FUNÇÃO DE ENCERRAR ATUALIZADA ---
 async function endMatch() {
     if(confirm("Deseja encerrar a partida, salvar no histórico e baixar o relatório consolidado?")) {
@@ -962,6 +998,11 @@ function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
         <h2 id="modal-match-title" style="font-family: 'Orbitron'; color: var(--primary); margin-bottom: 5px;">DETALHES DA PARTIDA</h2>
         <p id="modal-match-info" style="font-size: 12px; color: #9CA3AF; margin-bottom: 20px;"></p>
         
+        <div style="display:flex; justify-content: flex-end; gap: 15px; margin-bottom: 10px; font-size: 10px; font-family: 'Orbitron';">
+    <span style="color: var(--primary);">● ACERTOS</span>
+    <span style="color: #FF4D4D;">● ERROS</span>
+</div>
+
         <div class="stats-table-wrapper">
             <table class="stats-table">
                 <thead>
