@@ -804,30 +804,54 @@ function closeMatchDetails() {
 }
 
 // --- FUNÇÃO DE DOWNLOAD LIMPA E CORRIGIDA ---
-function downloadMatchCSV(matchName) {
-    const table = document.querySelector(".stats-table");
-    let csv = [];
+async function downloadMatchCSV(matchName) {
+    // 1. Captura os dados da tabela que está sendo exibida no modal
+    const rows = document.querySelectorAll("#modal-table-body tr");
     
-    // Pega todas as linhas da tabela
-    const rows = table.querySelectorAll("tr");
-    
-    for (const row of rows) {
-        const cols = row.querySelectorAll("th, td");
-        const rowData = [];
-        for (const col of cols) {
-            // Remove quebras de linha e troca a barra visual por barra de texto simples
-            let text = col.innerText.replace(/\|/g, "/").replace(/\n/g, " ").trim();
-            rowData.push('"' + text + '"');
-        }
-        csv.push(rowData.join(";"));
+    if (rows.length === 0) {
+        alert("Nenhum dado encontrado para exportar.");
+        return;
     }
 
-    const csvContent = "\uFEFF" + csv.join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // 2. Define o cabeçalho exatamente como no seu modelo
+    let csvContent = "ATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATA_PONTO;ATA_ERRO;BLO_PONTO;BLO_ERRO;EFICIENCIA\n";
+
+    // 3. Percorre as linhas da tabela e extrai os números
+    rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        
+        // Extração limpa dos valores ignorando os separadores visual "|"
+        const nome = cols[0].innerText.toLowerCase();
+        
+        // Função auxiliar para pegar os números de cada célula (Ponto|Erro)
+        const getVals = (cell) => {
+            const parts = cell.innerText.split('|');
+            return {
+                ponto: parts[0] ? parts[0].trim() : "0",
+                erro: parts[1] ? parts[1].trim() : "0"
+            };
+        };
+
+        const saq = getVals(cols[1]);
+        const rec = getVals(cols[2]);
+        const ata = getVals(cols[3]);
+        const blo = getVals(cols[4]);
+        const ef  = cols[5].innerText.trim();
+
+        // Monta a linha separada por ponto e vírgula
+        const line = `${nome};${saq.ponto};${saq.erro};${rec.ponto};${rec.erro};${ata.ponto};${ata.erro};${blo.ponto};${blo.erro};${ef}`;
+        csvContent += line + "\n";
+    });
+
+    // 4. Cria o arquivo para download com suporte a acentos (UTF-8 com BOM)
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `VStats_${matchName.replace(/\s+/g, '_')}.csv`;
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `VStats_${matchName.replace(/\s+/g, '_')}.csv`);
     document.body.appendChild(link);
+    
     link.click();
     document.body.removeChild(link);
 }
