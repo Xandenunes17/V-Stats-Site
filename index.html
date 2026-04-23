@@ -174,24 +174,28 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 }
 /* Container do Modal com efeito Glassmorphism */
 .modal-content {
-    background: #0F1115; /* Fundo bem escuro */
+    background: #0F1115;
     border: 1px solid var(--primary);
     box-shadow: 0 0 25px rgba(34, 197, 94, 0.2);
     border-radius: 16px;
     padding: 30px;
     position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 900px;
 }
 
-/* Tabela Profissional */
+/* Tabela Profissional - VISUAL DOS CARDS */
 .stats-table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px; /* Espaçamento entre as linhas */
+    border-collapse: separate; /* Fundamental para o espaçamento funcionar */
+    border-spacing: 0 10px;    /* Espaço entre os atletas */
 }
 
 .stats-table th {
     background: transparent;
-    color: #94A3B8; /* Cinza para os títulos */
+    color: #94A3B8;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1.5px;
@@ -200,19 +204,28 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 }
 
 .stats-table td {
-    background: #1A1F26; /* Fundo de cada linha */
+    background: #1A1F26; /* Fundo de cada linha/card */
     padding: 15px 10px;
     color: white;
+    text-align: center;
+    border: none;
 }
 
 /* Arredondar as pontas das linhas */
-.stats-table td:first-child { border-radius: 8px 0 0 8px; text-align: left; font-weight: bold; }
+.stats-table td:first-child { 
+    border-radius: 8px 0 0 8px; 
+    text-align: left; 
+    font-weight: bold; 
+    padding-left: 20px; 
+    color: var(--primary);
+    font-family: 'Orbitron';
+}
 .stats-table td:last-child { border-radius: 0 8px 8px 0; }
 
 /* Destaque de Números */
 .val-ponto { color: var(--primary); font-weight: 800; font-size: 15px; }
-.val-divider { color: #4B5563; margin: 0 4px; }
-.val-erro { color: #FF4D4D; font-weight: 500; }
+.val-divider { color: #4B5563; margin: 0 6px; font-weight: 300;}
+.val-erro { color: #FF4D4D; font-weight: 500; font-size: 14px;}
 
 /* Badge de Eficiência */
 .ef-badge {
@@ -606,7 +619,6 @@ function displayCard(u) {
 
     setTimeout(() => initChart(vals, ovrColor), 50);
     
-    // Atualiza Gráficos e Histórico da pessoa sendo visualizada
     loadBarChart(u.nick); 
     loadMatchHistory(u);
 }
@@ -681,7 +693,6 @@ async function startMatch() {
     
     if(selectedPlayers.length === 0) return alert("Selecione pelo menos um atleta!");
 
-    // Adicionado o envio do 'nome'
     const { data, error } = await _supabase.from('partidas').insert([{ 
         treinador: currentUserData.nick, 
         nome: mName,
@@ -736,38 +747,55 @@ async function openMatchDetails(matchId, matchName, coach, date) {
     const tbody = document.getElementById('modal-table-body');
     tbody.innerHTML = '';
 
-    // Lógica de Consolidação
-    const relatorio = {};
-    partida.atletas.forEach(nick => {
-        relatorio[nick] = { sA:0, sE:0, rP:0, rE:0, aP:0, aE:0, bP:0, bE:0, totalA:0, totalE:0 };
-    });
+    if (!partida || !eventos) {
+        tbody.innerHTML = '<tr><td colspan="6">Dados não encontrados.</td></tr>';
+        return;
+    }
 
-    eventos.forEach(e => {
-        const r = relatorio[e.atleta];
-        if (!r) return;
-        if (e.fundamento === 'SAQ') { if(e.resultado==='ACE'){ r.sA++; r.totalA++; } else { r.sE++; r.totalE++; } }
-        else if (e.fundamento === 'REC') { if(e.resultado==='PERFEITA'){ r.rP++; r.totalA++; } else { r.rE++; r.totalE++; } }
-        else if (e.fundamento === 'ATA') { if(e.resultado==='PONTO'){ r.aP++; r.totalA++; } else { r.aE++; r.totalE++; } }
-        else if (e.fundamento === 'BLO') { if(e.resultado==='PONTO'){ r.bP++; r.totalA++; } else { r.bE++; r.totalE++; } }
-    });
+    // TRAVA DE SEGURANÇA: Garante que os nomes sejam um array limpo (Resolve o Bug dos colchetes amontoados)
+    let listaAtletas = [];
+    if (typeof partida.atletas === 'string') {
+        listaAtletas = partida.atletas.replace(/[\[\]"'{}]/g, '').split(',').map(n => n.trim());
+    } else if (Array.isArray(partida.atletas)) {
+        if (partida.atletas.length === 1 && partida.atletas[0].includes(',')) {
+            listaAtletas = partida.atletas[0].replace(/[\[\]"'{}]/g, '').split(',').map(n => n.trim());
+        } else {
+            listaAtletas = partida.atletas;
+        }
+    }
 
-    Object.keys(relatorio).forEach(nick => {
-        const d = relatorio[nick];
-        const ef = (d.totalA + d.totalE) > 0 ? ((d.totalA / (d.totalA + d.totalE)) * 100).toFixed(0) : 0;
+    // Loop individual garantido para cada atleta real
+    listaAtletas.forEach(nick => {
+        if (!nick) return;
+
+        const evs = eventos.filter(e => e.atleta === nick);
         
+        const sA = evs.filter(e => e.fundamento === 'SAQ' && (e.resultado === 'ACE' || e.resultado === 'PONTO')).length;
+        const sE = evs.filter(e => e.fundamento === 'SAQ' && e.resultado === 'ERRO').length;
+        const rP = evs.filter(e => e.fundamento === 'REC' && (e.resultado === 'PERFEITA' || e.resultado === 'PONTO')).length;
+        const rE = evs.filter(e => e.fundamento === 'REC' && e.resultado === 'ERRO').length;
+        const aP = evs.filter(e => e.fundamento === 'ATA' && e.resultado === 'PONTO').length;
+        const aE = evs.filter(e => e.fundamento === 'ATA' && e.resultado === 'ERRO').length;
+        const bP = evs.filter(e => e.fundamento === 'BLO' && e.resultado === 'PONTO').length;
+        const bE = evs.filter(e => e.fundamento === 'BLO' && e.resultado === 'ERRO').length;
+
+        const total = sA + sE + rP + rE + aP + aE + bP + bE;
+        const ef = total > 0 ? (((sA + rP + aP + bP) / total) * 100).toFixed(0) : 0;
+
         tbody.innerHTML += `
             <tr>
-                <td style="font-weight:bold;">${nick}</td>
-                <td><span class="val-ponto">${d.sA}</span> / <span class="val-erro">${d.sE}</span></td>
-                <td><span class="val-ponto">${d.rP}</span> / <span class="val-erro">${d.rE}</span></td>
-                <td><span class="val-ponto">${d.aP}</span> / <span class="val-erro">${d.aE}</span></td>
-                <td><span class="val-ponto">${d.bP}</span> / <span class="val-erro">${d.bE}</span></td>
-                <td><span class="eficiencia-badge" style="color:${getDynamicColor(ef)}">${ef}%</span></td>
+                <td>${nick.toUpperCase()}</td>
+                <td><span class="val-ponto">${sA}</span><span class="val-divider">|</span><span class="val-erro">${sE}</span></td>
+                <td><span class="val-ponto">${rP}</span><span class="val-divider">|</span><span class="val-erro">${rE}</span></td>
+                <td><span class="val-ponto">${aP}</span><span class="val-divider">|</span><span class="val-erro">${aE}</span></td>
+                <td><span class="val-ponto">${bP}</span><span class="val-divider">|</span><span class="val-erro">${bE}</span></td>
+                <td><span class="ef-badge">${ef}%</span></td>
             </tr>
         `;
     });
 
-    document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV(matchId, matchName);
+    // Passa apenas o nome da partida para o botão baixar ler a tabela limpa
+    document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV(matchName);
     document.getElementById('modal-stats').classList.remove('hidden');
 }
 
@@ -775,61 +803,57 @@ function closeMatchDetails() {
     document.getElementById('modal-stats').classList.add('hidden');
 }
 
-// --- DOWNLOAD CSV (AJUSTADO PARA PONTO E VÍRGULA) ---
-async function downloadMatchCSV(matchId, matchName) {
-    const { data: eventos } = await _supabase.from('eventos').select('*').eq('partida_id', matchId);
-    const { data: partida } = await _supabase.from('partidas').select('atletas').eq('id', matchId).single();
+// --- FUNÇÃO DE DOWNLOAD LIMPA E CORRIGIDA ---
+function downloadMatchCSV(matchName) {
+    const table = document.querySelector(".stats-table");
+    let csv = [];
     
-    let csv = "\uFEFFATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATA_PONTO;ATA_ERRO;BLO_PONTO;BLO_ERRO;EFICIENCIA\n";
-
-    partida.atletas.forEach(nick => {
-    const evs = eventos.filter(e => e.atleta === nick);
+    // Pega todas as linhas da tabela
+    const rows = table.querySelectorAll("tr");
     
-    // ... (os cálculos de sA, sE, rP, etc, continuam iguais) ...
+    for (const row of rows) {
+        const cols = row.querySelectorAll("th, td");
+        const rowData = [];
+        for (const col of cols) {
+            // Remove quebras de linha e troca a barra visual por barra de texto simples
+            let text = col.innerText.replace(/\|/g, "/").replace(/\n/g, " ").trim();
+            rowData.push('"' + text + '"');
+        }
+        csv.push(rowData.join(";"));
+    }
 
-    const total = sA + sE + rP + rE + aP + aE + bP + bE;
-    const ef = total > 0 ? (((sA + rP + aP + bP) / total) * 100).toFixed(0) : 0;
-
-    // ESTA É A PARTE QUE DEVES SUBSTITUIR (o innerHTML):
-    tbody.innerHTML += `
-        <tr>
-            <td style="font-family: 'Orbitron'; font-size: 12px; text-align: left; background: #1A1F26; border-radius: 8px 0 0 8px; padding-left: 15px;">
-                ${nick.toUpperCase()}
-            </td>
-            <td><span class="val-ponto">${sA}</span><span class="val-divider">|</span><span class="val-erro">${sE}</span></td>
-            <td><span class="val-ponto">${rP}</span><span class="val-divider">|</span><span class="val-erro">${rE}</span></td>
-            <td><span class="val-ponto">${aP}</span><span class="val-divider">|</span><span class="val-erro">${aE}</span></td>
-            <td><span class="val-ponto">${bP}</span><span class="val-divider">|</span><span class="val-erro">${bE}</span></td>
-            <td style="border-radius: 0 8px 8px 0;"><span class="ef-badge">${ef}%</span></td>
-        </tr>
-    `;
-});
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = "\uFEFF" + csv.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `VStats_${matchName.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 }
 
-// --- VERSÃO CORRIGIDA DA FUNÇÃO ---
 async function loadMatchHistory(u) {
     const historyContainer = document.getElementById('history-list');
-    historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Carregando partidas...</p>';
+    if (!historyContainer) return;
+    
+    historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">A carregar partidas...</p>';
 
-    // Esta é a mudança principal: 
-    // Buscamos partidas onde o nick do usuário é o treinador OU está contido na lista de atletas
+    // Tente simplificar a consulta se o .or estiver a falhar
     const { data, error } = await _supabase
         .from('partidas')
         .select('*')
+        // Certifique-se que o nick não tem espaços ou caracteres especiais
         .or(`treinador.eq.${u.nick},atletas.cs.{"${u.nick}"}`) 
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
 
-    historyContainer.innerHTML = '';
+    if (error) {
+        console.error("Erro no Supabase:", error.message);
+        historyContainer.innerHTML = '<p style="color:red;">Erro ao carregar dados.</p>';
+        return;
+    }
 
     if (!data || data.length === 0) {
-        historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida registrada.</p>';
+        historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida encontrada.</p>';
         return;
     }
 
@@ -837,9 +861,9 @@ async function loadMatchHistory(u) {
         const matchName = p.nome || `Partida #${p.id}`;
         const dateStr = new Date(p.created_at).toLocaleDateString('pt-BR');
         historyContainer.innerHTML += `
-            <div class="athlete-item" style="margin-bottom:8px; padding: 12px;" onclick="openMatchDetails('${p.id}', '${matchName}', '${p.treinador}', '${dateStr}')">
+            <div class="athlete-item" style="margin-bottom:8px; padding: 12px; cursor:pointer;" onclick="openMatchDetails('${p.id}', '${matchName}', '${p.treinador}', '${dateStr}')">
                 <div style="display:flex; flex-direction:column;">
-                    <span style="font-family:'Orbitron'; font-size:14px; color:var(--primary);">${matchName}</span>
+                    <span style="font-family:'Orbitron'; font-size:14px; color:var(--primary);">${matchName.toUpperCase()}</span>
                     <span style="font-size:10px; color:#9CA3AF;">${dateStr} • Coach: ${p.treinador}</span>
                 </div>
                 <span style="font-size:18px; color:var(--primary);">➔</span>
@@ -847,23 +871,16 @@ async function loadMatchHistory(u) {
         `;
     });
 }
+
 // --- FUNÇÃO DE ENCERRAR ATUALIZADA ---
 async function endMatch() {
-    if(confirm("Deseja encerrar a partida, salvar no histórico e baixar o relatório consolidado?")) {
-        const mId = currentMatchId;
-        const mName = currentMatchName;
-
-        // 1. Gera a planilha profissional
-        await downloadMatchCSV(mId, mName);
-
-        // 2. Limpa o estado da partida
+    if(confirm("Deseja encerrar a partida e salvar no histórico? (Você pode baixar a planilha clicando no histórico dps)")) {
         currentMatchId = null;
         currentMatchName = "";
         document.getElementById('pre-match-area').classList.remove('hidden');
         document.getElementById('match-area').classList.add('hidden');
         document.getElementById('match-name').value = '';
 
-        // 3. Atualiza o dashboard para mostrar o novo histórico
         showPage('profile');
         alert("Partida salva! Verifique o Histórico no seu Dashboard.");
     }
@@ -990,28 +1007,29 @@ function enterApp() {
 
 function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
 
-
 </script>
+
 <div id="modal-stats" class="modal-overlay hidden">
     <div class="modal-content">
-        <span class="close-modal" onclick="closeMatchDetails()">×</span>
-        <h2 id="modal-match-title" style="font-family: 'Orbitron'; color: var(--primary); margin-bottom: 5px;">DETALHES DA PARTIDA</h2>
+        <span style="position: absolute; top: 15px; right: 20px; font-size: 30px; cursor: pointer; color: #9CA3AF;" onclick="closeMatchDetails()">×</span>
+        
+        <h2 id="modal-match-title" style="font-family: 'Orbitron'; color: var(--primary); margin-bottom: 5px; text-transform: uppercase;">DETALHES DA PARTIDA</h2>
         <p id="modal-match-info" style="font-size: 12px; color: #9CA3AF; margin-bottom: 20px;"></p>
         
         <div style="display:flex; justify-content: flex-end; gap: 15px; margin-bottom: 10px; font-size: 10px; font-family: 'Orbitron';">
-    <span style="color: var(--primary);">● ACERTOS</span>
-    <span style="color: #FF4D4D;">● ERROS</span>
-</div>
+            <span style="color: var(--primary);">● ACERTOS</span>
+            <span style="color: #FF4D4D;">● ERROS</span>
+        </div>
 
-        <div class="stats-table-wrapper">
+        <div style="overflow-x: auto;">
             <table class="stats-table">
                 <thead>
                     <tr>
                         <th>ATLETA</th>
-                        <th>SAQUE (A/E)</th>
-                        <th>REC (P/E)</th>
-                        <th>ATAQUE (P/E)</th>
-                        <th>BLOCO (P/E)</th>
+                        <th>SAQUE (A|E)</th>
+                        <th>REC (P|E)</th>
+                        <th>ATAQUE (P|E)</th>
+                        <th>BLOCO (P|E)</th>
                         <th>EFICIÊNCIA</th>
                     </tr>
                 </thead>
@@ -1021,10 +1039,11 @@ function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
         </div>
         
         <div style="margin-top: 25px; display: flex; gap: 10px;">
-            <button class="btn btn-solid" id="btn-download-csv">Baixar Planilha Completa</button>
-            <button class="btn" style="border-color: #666; color: #999;" onclick="closeMatchDetails()">Fechar</button>
+            <button class="btn btn-solid" id="btn-download-csv">📥 BAIXAR PLANILHA (CSV)</button>
+            <button class="btn" style="border-color: #4B5563; color: #9CA3AF;" onclick="closeMatchDetails()">FECHAR</button>
         </div>
     </div>
 </div>
+
 </body>
 </html>
