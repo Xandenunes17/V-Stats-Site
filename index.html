@@ -21,30 +21,18 @@
     --glow: 0 0 15px rgba(34, 197, 94, 0.3);
     --border-subtle: 1px solid rgba(229, 231, 235, 0.1);
 }
-.container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
+.container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 body { background: var(--bg-main); color: var(--text-light); overflow-x: hidden; padding-bottom: 100px; }
 
-h1, h2, h3, .logo-text, .overall-val, .stat-num, .search-ovr {
-    font-family: 'Orbitron', sans-serif;
-}
+h1, h2, h3, .logo-text, .overall-val, .stat-num, .search-ovr { font-family: 'Orbitron', sans-serif; }
 
 nav { 
     display: flex; justify-content: center; align-items: center; 
     padding: 20px 5%; background: var(--bg-main); 
     border-bottom: 1px solid var(--bg-panel); position: sticky; top: 0; z-index: 1000; 
 }
-.logo-container { display: flex; align-items: center; gap: 10px; }
-.logo-icon { display: flex; font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 28px; font-style: italic; letter-spacing: -2px; }
-.logo-v { color: var(--primary); text-shadow: 2px 2px 0px #000; }
-.logo-s { color: var(--text-light); margin-left: -5px; text-shadow: 2px 2px 0px #000; }
-.logo-text { font-weight: 700; font-size: 18px; color: var(--text-light); letter-spacing: 2px; }
 
 .main-container { width: 95%; max-width: 500px; margin: 20px auto; display: flex; flex-direction: column; gap: 20px; }
 
@@ -98,16 +86,8 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .overall-val { font-size: 38px; font-weight: 900; color: var(--white); transition: color 0.3s ease;}
 
 .badges-wrapper { display: flex; gap: 10px; justify-content: center; width: 100%; margin-top: 5px; }
-.logo-main {
-    height: 45px; 
-    width: auto; 
-    object-fit: contain; 
-    max-width: 100%; 
-}
-.img-slot, .flag-slot {
-    height: 40px;
-    width: auto;
-    object-fit: contain;}
+.logo-main { height: 45px; width: auto; object-fit: contain; max-width: 100%; }
+.img-slot, .flag-slot { height: 40px; width: auto; object-fit: contain;}
 .flag-slot { width: 35px; height: auto; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); }
 
 .profile-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
@@ -171,25 +151,16 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 }
 .nav-item:hover, .nav-item.active { color: var(--primary); }
 .nav-icon { font-size: 20px; }
-
 .hidden { display: none !important; }
+
+.player-cb-label { display:flex; align-items:center; gap:10px; color:var(--text-light); font-size:14px; padding: 5px 0;}
+.player-cb-label input { width: 18px; height: 18px; margin:0;}
 
 @media (max-width: 400px) { 
     .card-header { flex-direction: column; }
     .card-left, .card-right { width: 100%; border-right: none; } 
     .card-left { border-bottom: var(--border-subtle); flex-direction: row; justify-content: space-between; padding: 15px 20px; }
-    .overall-wrapper {  width: clamp(60px, 18vw, 90px);
-  aspect-ratio: 1 / 1; 
-  border-radius: 50%;
-  border: 3px solid #22C55E;
-  
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: clamp(18px, 5vw, 28px);
-  font-weight: bold;
-  color: #E5E7EB;}
+    .overall-wrapper { width: clamp(60px, 18vw, 90px); aspect-ratio: 1 / 1; border-radius: 50%; border: 3px solid #22C55E; display: flex; align-items: center; justify-content: center; font-size: clamp(18px, 5vw, 28px); font-weight: bold; color: #E5E7EB;}
     .overall-val { font-size: 28px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
 }
@@ -198,9 +169,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 <body>
 
 <nav>
-    <img src="https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png" 
-         class="logo-main" 
-         alt="V-STATS Logo">
+    <img src="https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png" class="logo-main" alt="V-STATS Logo">
 </nav>
 
 <div class="main-container">
@@ -215,6 +184,10 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
         
         <div id="register-fields" class="hidden">
             <input type="email" id="reg-email" placeholder="E-mail (Opcional)">
+            <select id="reg-role">
+                <option value="atleta">Conta: Atleta</option>
+                <option value="treinador">Conta: Treinador</option>
+            </select>
             <select id="reg-pos-init">
                 <option value="Levantador">Levantador</option>
                 <option value="Oposto">Oposto</option>
@@ -284,9 +257,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
             <div class="player-card">
                 <div class="card-header">
                     <div class="card-left">
-                        <div class="overall-wrapper" id="ovr-wrapper">
-                            <div class="overall-val" id="card-ovr">00</div>
-                        </div>
+                        <div class="overall-wrapper" id="ovr-wrapper"><div class="overall-val" id="card-ovr">00</div></div>
                         <div class="pos-badge" id="card-pos">POS</div>
                         <div class="badges-wrapper">
                             <img id="display-team-logo" class="img-slot" src="" onerror="this.style.display='none'">
@@ -344,10 +315,61 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
                 </div>
                 
                 <div id="card-stats-grid" class="stats-grid"></div>
+
+                <div id="match-stats-area" style="padding: 0 20px 20px 20px;">
+                    <h3 style="font-size: 14px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; font-family: 'Orbitron', sans-serif;">📊 Eficiência em Jogo (%)</h3>
+                    <div style="height:150px; background: var(--bg-main); padding: 10px; border-radius: 8px; border: 1px solid var(--bg-card); position: relative;">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="match-history-area" style="padding: 0 20px 20px 20px;">
+                    <h3 style="font-size: 14px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; font-family: 'Orbitron', sans-serif;">📜 Histórico de Partidas</h3>
+                    <div id="history-list" style="display:flex; flex-direction:column; gap:10px;">
+                        </div>
+                </div>
                 
                 <div style="padding: 0 20px 20px 20px;">
                     <button class="btn btn-danger" id="btn-logout" onclick="logout()">Sair do Sistema</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="page-game" class="app-page hidden">
+            <h2 style="margin-bottom:15px; color: var(--white);">🎯 Painel do Treinador</h2>
+
+            <div id="pre-match-area" style="background: var(--bg-panel); padding: 15px; border-radius: 8px; border: 1px solid var(--bg-card);">
+                <p style="font-size: 12px; color: #9CA3AF; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">1. Detalhes da Partida:</p>
+                <input type="text" id="match-name" placeholder="Ex: Amistoso vs Time X" style="margin-bottom: 15px;">
+
+                <p style="font-size: 12px; color: #9CA3AF; margin-bottom: 10px; text-transform: uppercase; font-weight: bold;">2. Escale o seu time:</p>
+                <div id="player-checkbox-list" style="max-height: 200px; overflow-y: auto; background: var(--bg-main); border: 1px solid var(--bg-card); padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;">
+                    </div>
+                <button class="btn btn-solid" onclick="startMatch()">Iniciar Partida</button>
+            </div>
+
+            <div id="match-area" class="hidden" style="margin-top:15px; background: var(--bg-panel); padding: 15px; border-radius: 8px; border: 1px solid var(--bg-card);">
+                <p style="font-size: 12px; color: #9CA3AF; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Atleta Foco:</p>
+                <select id="player-select" onchange="updateLiveFeedback()"></select>
+
+                <div id="live-feedback" style="margin-top:10px; font-size:12px; color:var(--primary); background:var(--bg-main); padding:10px; border-radius:8px; border: 1px solid var(--primary); text-align: center; font-weight: bold;">
+                    Selecione um jogador para avaliar...
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
+                    <button class="btn" style="border-color: #3b82f6; color: #3b82f6;" onclick="registerEvent('SAQ','ACE')">Saque Ace</button>
+                    <button class="btn" style="border-color: #ef4444; color: #ef4444;" onclick="registerEvent('SAQ','ERRO')">Saque Erro</button>
+
+                    <button class="btn" style="border-color: #3b82f6; color: #3b82f6;" onclick="registerEvent('REC','PERFEITA')">Recepção Perfeita</button>
+                    <button class="btn" style="border-color: #ef4444; color: #ef4444;" onclick="registerEvent('REC','ERRO')">Recepção Erro</button>
+
+                    <button class="btn" style="border-color: #3b82f6; color: #3b82f6;" onclick="registerEvent('ATA','PONTO')">Ataque Ponto</button>
+                    <button class="btn" style="border-color: #ef4444; color: #ef4444;" onclick="registerEvent('ATA','ERRO')">Ataque Erro</button>
+
+                    <button class="btn" style="border-color: #3b82f6; color: #3b82f6;" onclick="registerEvent('BLO','PONTO')">Bloqueio Ponto</button>
+                    <button class="btn" style="border-color: #ef4444; color: #ef4444;" onclick="registerEvent('BLO','ERRO')">Bloqueio Erro</button>
+                </div>
+                <button class="btn btn-danger" style="margin-top:20px;" onclick="endMatch()">Encerrar Partida e Baixar Planilha</button>
             </div>
         </div>
     </div>
@@ -357,6 +379,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     <div class="nav-item" id="nav-profile" onclick="showPage('profile')"><span class="nav-icon">👤</span> DASHBOARD</div>
     <div class="nav-item" id="nav-ranking" onclick="showPage('ranking')"><span class="nav-icon">🏆</span> RANKINGS</div>
     <div class="nav-item" id="nav-search" onclick="showPage('search')"><span class="nav-icon">🔍</span> BUSCA</div>
+    <div class="nav-item" id="nav-game" onclick="showPage('game')"><span class="nav-icon">🎯</span> JOGO</div>
 </div>
 
 <script>
@@ -373,7 +396,11 @@ const BIBLIOTECA_IMAGENS = {
 let currentUserData = null;
 let viewedUserData = null;
 let radarChart = null;
+let barChartObj = null; 
 let isRegisterMode = false;
+let currentMatchId = null;
+let currentMatchName = "";
+let liveMatchStats = {}; 
 
 window.onload = () => {
     const savedUser = localStorage.getItem('vstats_user');
@@ -386,7 +413,6 @@ function getDynamicColor(value, alpha = 1) {
     return `hsla(${hue}, 85%, 50%, ${alpha})`;
 }
 
-// ALTERAÇÃO: Função auxiliar para converter a imagem da galeria em código (Base64)
 function getBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -404,11 +430,7 @@ function toggleAuthMode() {
 
 function toggleEditFields() { 
     const editArea = document.getElementById('edit-profile-area');
-    if(!editArea.classList.contains('hidden')) {
-        editArea.classList.add('hidden');
-        return;
-    }
-    // ALTERAÇÃO: Reseta o input de arquivo (não é possível preenchê-lo por segurança)
+    if(!editArea.classList.contains('hidden')) { editArea.classList.add('hidden'); return; }
     document.getElementById('update-photo').value = "";
     document.getElementById('update-pos').value = currentUserData.pos;
     document.getElementById('update-team').value = currentUserData.team;
@@ -422,12 +444,12 @@ async function handleAuth() {
     if(!nick || !pass) return alert("Preencha as credenciais.");
 
     if(isRegisterMode) {
+        const role = document.getElementById('reg-role').value;
         const { data, error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, email: document.getElementById('reg-email').value, 
+            nick, pass, email: document.getElementById('reg-email').value, role: role,
             pos: document.getElementById('reg-pos-init').value, 
             city: "Brasil", team: "Livre", photo: "", stats: {ATA:50,LEV:50,BLO:50,DEF:50,PAS:50,SAQ:50}, ratings: {} 
         }]).select();
-        
         if(error) return alert("Erro no sistema: " + error.message);
         currentUserData = data[0];
     } else {
@@ -441,25 +463,13 @@ async function handleAuth() {
 
 async function saveProfileUpdates() {
     const fileInput = document.getElementById('update-photo');
-    let photoData = currentUserData.photo; // Mantém a foto atual se nenhuma nova for enviada
+    let photoData = currentUserData.photo; 
 
-    // ALTERAÇÃO: Verifica se o usuário escolheu uma imagem
     if (fileInput.files && fileInput.files[0]) {
-        try {
-            // Converte a imagem para texto (Base64) antes de enviar ao Supabase
-            photoData = await getBase64(fileInput.files[0]);
-        } catch (error) {
-            alert("Erro ao processar a imagem da galeria.");
-            return;
-        }
+        try { photoData = await getBase64(fileInput.files[0]); } catch (error) { return alert("Erro na imagem."); }
     }
 
-    const update = { 
-        team: document.getElementById('update-team').value, 
-        city: document.getElementById('update-city').value, 
-        pos: document.getElementById('update-pos').value, 
-        photo: photoData 
-    };
+    const update = { team: document.getElementById('update-team').value, city: document.getElementById('update-city').value, pos: document.getElementById('update-pos').value, photo: photoData };
     const { error } = await _supabase.from('atletas').update(update).eq('nick', currentUserData.nick);
     if(error) alert("Falha na sincronização!");
     else {
@@ -472,21 +482,11 @@ async function saveProfileUpdates() {
 
 async function rateStat(statKey, stars) {
     if(!viewedUserData || viewedUserData.nick === currentUserData.nick) return;
-
-    const points = stars * 20; 
-    const voterNick = currentUserData.nick; 
-
+    const points = stars * 20; const voterNick = currentUserData.nick; 
     let ratings = viewedUserData.ratings || {};
-
     if (!ratings[statKey]) ratings[statKey] = {};
-
     ratings[statKey][voterNick] = points;
-
-    const { error } = await _supabase
-        .from('atletas')
-        .update({ ratings: ratings })
-        .eq('nick', viewedUserData.nick);
-    
+    const { error } = await _supabase.from('atletas').update({ ratings: ratings }).eq('nick', viewedUserData.nick);
     if(!error) {
         const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
         displayCard(data);
@@ -507,7 +507,6 @@ function displayCard(u) {
     document.getElementById('display-city-flag').src = BIBLIOTECA_IMAGENS.cidades[u.city] || '';
     document.getElementById('display-team-logo').style.display = BIBLIOTECA_IMAGENS.times[u.team] ? 'block' : 'none';
     document.getElementById('display-city-flag').style.display = BIBLIOTECA_IMAGENS.cidades[u.city] ? 'block' : 'none';
-    
     document.getElementById('btn-edit-trigger').style.display = isOwner ? 'block' : 'none';
 
     const grid = document.getElementById('card-stats-grid'); grid.innerHTML = '';
@@ -516,52 +515,297 @@ function displayCard(u) {
     keys.forEach(k => {
         let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 50;
         let avgStars = 0;
-
         if (u.ratings && u.ratings[k] && typeof u.ratings[k] === 'object') {
             const votosArray = Object.values(u.ratings[k]);
-            
             if (votosArray.length > 0) {
                 const mediaComunidade = votosArray.reduce((a, b) => a + b, 0) / votosArray.length;
-                
                 baseVal = Math.round((baseVal + (mediaComunidade * 3)) / 4);
                 avgStars = Math.round(mediaComunidade / 10);
             }
         }
-        
         baseVal = Math.max(1, Math.min(100, baseVal));
-        sum += baseVal; 
-        vals.push(baseVal);
+        sum += baseVal; vals.push(baseVal);
         
         const dynamicColor = getDynamicColor(baseVal);
         let starsHtml = isOwner ? '' : '<div class="stars-container">';
         if(!isOwner) {
-            for(let i=1; i<=5; i++) {
-                starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`;
-            }
+            for(let i=1; i<=5; i++) { starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`; }
             starsHtml += '</div>';
         }
-
-        grid.innerHTML += `
-        <div class="stat-box" style="border-color: ${getDynamicColor(baseVal, 0.3)};">
-            <span class="stat-name" style="color: ${dynamicColor};">${k}</span>
-            <span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>
-            ${starsHtml}
-        </div>`;
+        grid.innerHTML += `<div class="stat-box" style="border-color: ${getDynamicColor(baseVal, 0.3)};"><span class="stat-name" style="color: ${dynamicColor};">${k}</span><span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>${starsHtml}</div>`;
     });
     
     const ovr = Math.max(1, Math.min(100, Math.round(sum/6)));
     const ovrColor = getDynamicColor(ovr);
-
     const ovrWrapper = document.getElementById('ovr-wrapper');
     ovrWrapper.style.borderColor = ovrColor;
     ovrWrapper.style.boxShadow = `inset 0 0 10px ${getDynamicColor(ovr, 0.2)}, 0 0 15px ${getDynamicColor(ovr, 0.4)}`;
-    
     const ovrText = document.getElementById('card-ovr');
-    ovrText.innerText = ovr;
-    ovrText.style.color = ovrColor;
+    ovrText.innerText = ovr; ovrText.style.color = ovrColor;
 
     setTimeout(() => initChart(vals, ovrColor), 50);
+    
+    // Atualiza Gráficos e Histórico da pessoa sendo visualizada
+    loadBarChart(u.nick); 
+    loadMatchHistory(u);
 }
+
+function initChart(data, baseColor) {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    if(radarChart) radarChart.destroy();
+    const isHsla = baseColor && baseColor.startsWith('hsla');
+    const borderColor = baseColor || '#22C55E';
+    let bgColor = 'rgba(34, 197, 94, 0.2)'; 
+    if (isHsla) bgColor = baseColor.replace(/[\d.]+\)$/g, '0.2)'); 
+
+    radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: { labels: ['ATA','LEV','BLO','DEF','PAS','SAQ'], datasets: [{ data, backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#0F1115', pointRadius: 4, pointHoverRadius: 6 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 20 }, grid: { color: 'rgba(255,255,255,0.05)' }, angleLines: { color: 'rgba(255,255,255,0.05)' }, pointLabels: { color: '#E5E7EB', font: { family: 'Orbitron', weight: 'bold', size: 10 } } } }, plugins: { legend: { display: false } } }
+    });
+}
+
+// ----------------- LÓGICA DO TREINADOR E PARTIDAS -----------------
+
+async function loadBarChart(nick) {
+    const stats = await getPlayerStats(nick);
+    const ctx = document.getElementById('barChart').getContext('2d');
+    if(barChartObj) barChartObj.destroy();
+    
+    const calc = (fund) => stats[fund] && stats[fund].total > 0 ? Math.round((stats[fund].acerto / stats[fund].total) * 100) : 0;
+    const dataArr = [calc('SAQ'), calc('REC'), calc('ATA'), calc('BLO')];
+    
+    barChartObj = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Saque', 'Passe/Rec', 'Ataque', 'Bloqueio'],
+            datasets: [{
+                data: dataArr,
+                backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                borderColor: '#22C55E',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { 
+                y: { min: 0, max: 100, ticks: { color: '#9CA3AF', stepSize: 25 } }, 
+                x: { ticks: { color: '#E5E7EB', font: { size: 10, weight: 'bold' } } } 
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+async function loadPlayersForMatch() {
+    const { data } = await _supabase.from('atletas').select('nick, pos').order('nick');
+    const list = document.getElementById('player-checkbox-list');
+    list.innerHTML = '';
+    if(data) {
+        data.forEach(a => {
+            list.innerHTML += `<label class="player-cb-label"><input type="checkbox" value="${a.nick}" class="match-player-cb"> ${a.nick} (${a.pos})</label>`;
+        });
+    }
+}
+
+async function startMatch() {
+    if(!currentUserData || currentUserData.role !== 'treinador') return alert("Apenas treinadores podem usar isso.");
+    
+    const mName = document.getElementById('match-name').value.trim();
+    if(!mName) return alert("Por favor, digite um nome para a partida.");
+
+    const checkboxes = document.querySelectorAll('.match-player-cb:checked');
+    const selectedPlayers = Array.from(checkboxes).map(cb => cb.value);
+    
+    if(selectedPlayers.length === 0) return alert("Selecione pelo menos um atleta!");
+
+    // Adicionado o envio do 'nome'
+    const { data, error } = await _supabase.from('partidas').insert([{ 
+        treinador: currentUserData.nick, 
+        nome: mName,
+        atletas: selectedPlayers 
+    }]).select();
+
+    if(error) return alert("Erro ao criar partida. Certifique-se de que criou a coluna 'nome' no Supabase.");
+
+    currentMatchId = data[0].id;
+    currentMatchName = mName;
+    liveMatchStats = {}; 
+    
+    const select = document.getElementById('player-select');
+    select.innerHTML = '';
+    selectedPlayers.forEach(nick => {
+        liveMatchStats[nick] = { acertos: 0, erros: 0 }; 
+        select.innerHTML += `<option value="${nick}">${nick}</option>`;
+    });
+
+    document.getElementById('pre-match-area').classList.add('hidden');
+    document.getElementById('match-area').classList.remove('hidden');
+    updateLiveFeedback();
+}
+
+function updateLiveFeedback() {
+    const atleta = document.getElementById('player-select').value;
+    if(!atleta) return;
+    const stats = liveMatchStats[atleta];
+    document.getElementById('live-feedback').innerHTML = `Atleta: ${atleta} <br> <span style="color:#22C55E">Acertos: ${stats.acertos}</span> | <span style="color:#ef4444">Erros: ${stats.erros}</span>`;
+}
+
+async function registerEvent(fundamento, resultado) {
+    if(!currentMatchId) return alert("Inicie uma partida");
+    const atleta = document.getElementById('player-select').value;
+    
+    if(resultado === 'ERRO') liveMatchStats[atleta].erros++;
+    else liveMatchStats[atleta].acertos++;
+    updateLiveFeedback();
+
+    const { error } = await _supabase.from('eventos').insert([{ partida_id: currentMatchId, atleta: atleta, fundamento: fundamento, resultado: resultado }]);
+    if(error) console.error("Falha ao salvar evento no DB");
+}
+
+// --- NOVA FUNÇÃO PARA GERAR PLANILHA DETALHADA ---
+async function downloadMatchCSV(matchId, matchName) {
+    const { data: eventos } = await _supabase.from('eventos').select('*').eq('partida_id', matchId);
+    const { data: partida } = await _supabase.from('partidas').select('atletas').eq('id', matchId).single();
+    
+    if (!eventos || !partida) return alert("Dados insuficientes para gerar a planilha.");
+
+    // Inicializa a estrutura de dados para cada atleta
+    const relatorio = {};
+    partida.atletas.forEach(nick => {
+        relatorio[nick] = {
+            SAQUE_ACE: 0, SAQUE_ERRO: 0,
+            REC_PERFEITA: 0, REC_ERRO: 0,
+            ATAQUE_PONTO: 0, ATAQUE_ERRO: 0,
+            BLOQUEIO_PONTO: 0, BLOQUEIO_ERRO: 0,
+            TOTAL_ACERTOS: 0, TOTAL_ERROS: 0
+        };
+    });
+
+    // Processa os eventos e soma os totais
+    eventos.forEach(e => {
+        const a = e.atleta;
+        if (!relatorio[a]) return;
+
+        if (e.fundamento === 'SAQ') {
+            if (e.resultado === 'ACE') { relatorio[a].SAQUE_ACE++; relatorio[a].TOTAL_ACERTOS++; }
+            else { relatorio[a].SAQUE_ERRO++; relatorio[a].TOTAL_ERROS++; }
+        } 
+        else if (e.fundamento === 'REC') {
+            if (e.resultado === 'PERFEITA') { relatorio[a].REC_PERFEITA++; relatorio[a].TOTAL_ACERTOS++; }
+            else { relatorio[a].REC_ERRO++; relatorio[a].TOTAL_ERROS++; }
+        }
+        else if (e.fundamento === 'ATA') {
+            if (e.resultado === 'PONTO') { relatorio[a].ATAQUE_PONTO++; relatorio[a].TOTAL_ACERTOS++; }
+            else { relatorio[a].ATAQUE_ERRO++; relatorio[a].TOTAL_ERROS++; }
+        }
+        else if (e.fundamento === 'BLO') {
+            if (e.resultado === 'PONTO') { relatorio[a].BLOQUEIO_PONTO++; relatorio[a].TOTAL_ACERTOS++; }
+            else { relatorio[a].BLOQUEIO_ERRO++; relatorio[a].TOTAL_ERROS++; }
+        }
+    });
+
+    // Montagem do CSV (Cabeçalho baseado no seu modelo)
+    let csvContent = "\uFEFF"; // Byte Order Mark para aceitar acentos no Excel
+    csvContent += "ATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATAQUE_PONTO;ATAQUE_ERRO;BLOQUEIO_PONTO;BLOQUEIO_ERRO;TOTAL_PONTOS;TOTAL_ERROS;EFICIENCIA_%\n";
+
+    Object.keys(relatorio).forEach(nick => {
+        const r = relatorio[nick];
+        const totalAcoes = r.TOTAL_ACERTOS + r.TOTAL_ERROS;
+        const eficiencia = totalAcoes > 0 ? ((r.TOTAL_ACERTOS / totalAcoes) * 100).toFixed(1) : 0;
+
+        csvContent += `${nick};${r.SAQUE_ACE};${r.SAQUE_ERRO};${r.REC_PERFEITA};${r.REC_ERRO};${r.ATAQUE_PONTO};${r.ATAQUE_ERRO};${r.BLOQUEIO_PONTO};${r.BLOQUEIO_ERRO};${r.TOTAL_ACERTOS};${r.TOTAL_ERROS};${eficiencia}%\n`;
+    });
+
+    // Download do arquivo
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const safeName = matchName.replace(/\s+/g, '_').toLowerCase();
+    link.setAttribute("download", `VStats_Relatorio_${safeName}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// NOVO: Histórico de Partidas
+async function loadMatchHistory(u) {
+    const historyContainer = document.getElementById('history-list');
+    historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Carregando histórico...</p>';
+
+    let query = _supabase.from('partidas').select('*');
+    
+    if (u.role === 'treinador') {
+        query = query.eq('treinador', u.nick);
+    } else {
+        query = query.contains('atletas', [u.nick]);
+    }
+
+    const { data, error } = await query.order('id', { ascending: false }).limit(10);
+
+    historyContainer.innerHTML = '';
+
+    if (error || !data || data.length === 0) {
+        historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida encontrada.</p>';
+        return;
+    }
+
+    data.forEach(p => {
+        const matchName = p.nome || `Partida #${p.id}`;
+        const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : 'Data Desconhecida';
+        historyContainer.innerHTML += `
+            <div style="background: var(--bg-main); padding: 10px; border-radius: 8px; border: 1px solid var(--bg-card); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="font-size:12px; color:var(--white); margin-bottom:2px; font-family: 'Orbitron', sans-serif;">${matchName}</h4>
+                    <span style="font-size:10px; color:#9CA3AF;">Coach: ${p.treinador} | ${dateStr}</span>
+                </div>
+                <button class="btn" style="padding: 6px 12px; font-size: 10px; width: auto; background: var(--bg-panel);" onclick="downloadMatchCSV('${p.id}', '${matchName}')">Baixar Planilha</button>
+            </div>
+        `;
+    });
+}
+
+// --- FUNÇÃO DE ENCERRAR ATUALIZADA ---
+async function endMatch() {
+    if(confirm("Deseja encerrar a partida, salvar no histórico e baixar o relatório consolidado?")) {
+        const mId = currentMatchId;
+        const mName = currentMatchName;
+
+        // 1. Gera a planilha profissional
+        await downloadMatchCSV(mId, mName);
+
+        // 2. Limpa o estado da partida
+        currentMatchId = null;
+        currentMatchName = "";
+        document.getElementById('pre-match-area').classList.remove('hidden');
+        document.getElementById('match-area').classList.add('hidden');
+        document.getElementById('match-name').value = '';
+
+        // 3. Atualiza o dashboard para mostrar o novo histórico
+        showPage('profile');
+        alert("Partida salva! Verifique o Histórico no seu Dashboard.");
+    }
+}
+
+async function getPlayerStats(nick) {
+    let stats = { SAQ: { total:0, acerto:0 }, REC: { total:0, acerto:0 }, ATA: { total:0, acerto:0 }, BLO: { total:0, acerto:0 } };
+    const { data } = await _supabase.from('eventos').select('*').eq('atleta', nick);
+    if(data) {
+        data.forEach(e => {
+            if(stats[e.fundamento]) {
+                stats[e.fundamento].total++;
+                if((e.fundamento === 'SAQ' && e.resultado !== 'ERRO') || (e.fundamento === 'REC' && e.resultado !== 'ERRO') || (e.resultado === 'PONTO')) {
+                    stats[e.fundamento].acerto++;
+                }
+            }
+        });
+    }
+    return stats;
+}
+
+// ----------------- FIM DA LÓGICA DO TREINADOR -----------------
 
 async function renderSearch() {
     const q = document.getElementById('search-input').value.toLowerCase();
@@ -581,10 +825,7 @@ async function renderSearch() {
             let val = u.stats[k] || 50;
             if(u.ratings && u.ratings[k]) {
                 const votos = Object.values(u.ratings[k]);
-                if(votos.length > 0) {
-                    const mediaComunidade = votos.reduce((a,b)=>a+b,0) / votos.length;
-                    val = (val + (mediaComunidade * 3)) / 4;
-                }
+                if(votos.length > 0) val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length * 3)) / 4;
             }
             sum += Math.max(1, Math.min(100, val));
         });
@@ -592,17 +833,7 @@ async function renderSearch() {
         const ovrColor = getDynamicColor(ovr);
         const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
         
-        list.innerHTML += `
-        <div class="athlete-item" style="border-left: 4px solid ${ovrColor};" onclick="loadOther('${u.nick}')">
-            <div class="athlete-info">
-                <img src="${avatar}">
-                <div><h4>${u.nick}</h4><p>${u.pos} | ${u.team}</p></div>
-            </div>
-            <div class="search-ovr" style="border-color: ${ovrColor};">
-                <small style="color: ${ovrColor};">OVR</small>
-                <span style="color: ${ovrColor};">${ovr}</span>
-            </div>
-        </div>`;
+        list.innerHTML += `<div class="athlete-item" style="border-left: 4px solid ${ovrColor};" onclick="loadOther('${u.nick}')"><div class="athlete-info"><img src="${avatar}"><div><h4>${u.nick}</h4><p>${u.pos} | ${u.team}</p></div></div><div class="search-ovr" style="border-color: ${ovrColor};"><small style="color: ${ovrColor};">OVR</small><span style="color: ${ovrColor};">${ovr}</span></div></div>`;
     });
 }
 
@@ -621,17 +852,12 @@ async function renderRanking() {
             let val = u.stats[k] || 50; 
             if(u.ratings && u.ratings[k]) {
                 const votos = Object.values(u.ratings[k]);
-                if(votos.length > 0) {
-                    const mediaComunidade = votos.reduce((a,b)=>a+b,0) / votos.length;
-                    val = (val + (mediaComunidade * 3)) / 4;
-                }
+                if(votos.length > 0) val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length * 3)) / 4;
             }
             val = Math.max(1, Math.min(100, val));
-            s[k] = Math.round(val); 
-            sum += val;
+            s[k] = Math.round(val); sum += val;
         });
-        s.OVR = Math.round(sum/6); 
-        return {...u, s};
+        s.OVR = Math.round(sum/6); return {...u, s};
     }).sort((a,b) => b.s[stat] - a.s[stat]);
 
     const listEl = document.getElementById('ranking-list'); listEl.innerHTML = '';
@@ -645,61 +871,7 @@ async function renderRanking() {
         const statValue = u.s[stat];
         const statColor = getDynamicColor(statValue);
 
-        listEl.innerHTML += `
-        <div class="athlete-item" style="border-left: 4px solid ${statColor};" onclick="loadOther('${u.nick}')">
-            <div class="athlete-info">
-                ${badge}
-                <img src="${avatar}">
-                <div><h4>${u.nick}</h4><p>${u.pos}</p></div>
-            </div>
-            <div class="search-ovr" style="border-color: ${statColor};">
-                <small style="color: ${statColor};">${stat}</small>
-                <span style="color: ${statColor};">${statValue}</span>
-            </div>
-        </div>`;
-    });
-}
-
-function initChart(data, baseColor) {
-    const ctx = document.getElementById('radarChart').getContext('2d');
-    if(radarChart) radarChart.destroy();
-
-    const isHsla = baseColor && baseColor.startsWith('hsla');
-    const borderColor = baseColor || '#22C55E';
-    
-    let bgColor = 'rgba(34, 197, 94, 0.2)'; 
-    if (isHsla) {
-        bgColor = baseColor.replace(/[\d.]+\)$/g, '0.2)'); 
-    }
-
-    radarChart = new Chart(ctx, {
-        type: 'radar',
-        data: { 
-            labels: ['ATA','LEV','BLO','DEF','PAS','SAQ'], 
-            datasets: [{ 
-                data, 
-                backgroundColor: bgColor, 
-                borderColor: borderColor, 
-                borderWidth: 2, 
-                pointBackgroundColor: borderColor,
-                pointBorderColor: '#0F1115',
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }] 
-        },
-        options: { 
-            responsive: true, maintainAspectRatio: false, 
-            scales: { 
-                r: { 
-                    min: 0, max: 100, 
-                    ticks: { display: false, stepSize: 20 }, 
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    angleLines: { color: 'rgba(255,255,255,0.05)' },
-                    pointLabels: { color: '#E5E7EB', font: { family: 'Orbitron', weight: 'bold', size: 10 } } 
-                } 
-            }, 
-            plugins: { legend: { display: false } } 
-        }
+        listEl.innerHTML += `<div class="athlete-item" style="border-left: 4px solid ${statColor};" onclick="loadOther('${u.nick}')"><div class="athlete-info">${badge}<img src="${avatar}"><div><h4>${u.nick}</h4><p>${u.pos}</p></div></div><div class="search-ovr" style="border-color: ${statColor};"><small style="color: ${statColor};">${stat}</small><span style="color: ${statColor};">${statValue}</span></div></div>`;
     });
 }
 
@@ -713,19 +885,20 @@ async function loadOther(nick) {
 }
 
 function showPage(p) {
+    if(p === 'game' && currentUserData && currentUserData.role !== 'treinador') {
+        alert("Acesso restrito! Somente contas do tipo 'Treinador' podem acessar a criação de partidas.");
+        return;
+    }
+
     document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
     document.getElementById('page-' + p).classList.remove('hidden');
-    
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.getElementById('nav-' + p).classList.add('active');
 
-    if(p === 'profile') { 
-        displayCard(currentUserData); 
-        document.getElementById('btn-back').style.display='none'; 
-        document.getElementById('btn-logout').classList.remove('hidden'); 
-    }
+    if(p === 'profile') { displayCard(currentUserData); document.getElementById('btn-back').style.display='none'; document.getElementById('btn-logout').classList.remove('hidden'); }
     else if(p === 'search') renderSearch(); 
     else if(p === 'ranking') renderRanking();
+    else if(p === 'game') loadPlayersForMatch(); 
 }
 
 function enterApp() { 
