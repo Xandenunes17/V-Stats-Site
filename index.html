@@ -164,6 +164,39 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     .overall-val { font-size: 28px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* Estilo do Modal de Estatísticas */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9); z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+}
+.modal-content {
+    background: var(--bg-panel); border: 1px solid var(--primary);
+    box-shadow: var(--glow); width: 100%; max-width: 900px;
+    max-height: 90vh; overflow-y: auto; border-radius: 12px;
+    padding: 25px; position: relative;
+}
+.close-modal {
+    position: absolute; top: 15px; right: 15px;
+    color: var(--white); font-size: 24px; cursor: pointer;
+}
+.stats-table-wrapper { width: 100%; overflow-x: auto; margin-top: 20px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }
+.stats-table th { 
+    background: var(--bg-card); color: var(--primary); 
+    font-family: 'Orbitron', sans-serif; padding: 12px; 
+    border-bottom: 2px solid var(--primary);
+}
+.stats-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--white); }
+.val-ponto { color: var(--primary); font-weight: bold; }
+.val-erro { color: #ef4444; font-weight: bold; }
+.eficiencia-badge { 
+    background: var(--bg-main); padding: 4px 8px; 
+    border-radius: 4px; border: 1px solid var(--primary);
+}
+
 </style>
 </head>
 <body>
@@ -664,104 +697,115 @@ async function registerEvent(fundamento, resultado) {
     if(error) console.error("Falha ao salvar evento no DB");
 }
 
-// --- NOVA FUNÇÃO PARA GERAR PLANILHA DETALHADA ---
+// --- ABRIR MODAL COM TABELA DE ESTATÍSTICAS ---
+async function openMatchDetails(matchId, matchName, coach, date) {
+    const { data: eventos } = await _supabase.from('eventos').select('*').eq('partida_id', matchId);
+    const { data: partida } = await _supabase.from('partidas').select('atletas').eq('id', matchId).single();
+    
+    document.getElementById('modal-match-title').innerText = matchName.toUpperCase();
+    document.getElementById('modal-match-info').innerText = `${date} | Treinador: ${coach}`;
+    
+    const tbody = document.getElementById('modal-table-body');
+    tbody.innerHTML = '';
+
+    // Lógica de Consolidação
+    const relatorio = {};
+    partida.atletas.forEach(nick => {
+        relatorio[nick] = { sA:0, sE:0, rP:0, rE:0, aP:0, aE:0, bP:0, bE:0, totalA:0, totalE:0 };
+    });
+
+    eventos.forEach(e => {
+        const r = relatorio[e.atleta];
+        if (!r) return;
+        if (e.fundamento === 'SAQ') { if(e.resultado==='ACE'){ r.sA++; r.totalA++; } else { r.sE++; r.totalE++; } }
+        else if (e.fundamento === 'REC') { if(e.resultado==='PERFEITA'){ r.rP++; r.totalA++; } else { r.rE++; r.totalE++; } }
+        else if (e.fundamento === 'ATA') { if(e.resultado==='PONTO'){ r.aP++; r.totalA++; } else { r.aE++; r.totalE++; } }
+        else if (e.fundamento === 'BLO') { if(e.resultado==='PONTO'){ r.bP++; r.totalA++; } else { r.bE++; r.totalE++; } }
+    });
+
+    Object.keys(relatorio).forEach(nick => {
+        const d = relatorio[nick];
+        const ef = (d.totalA + d.totalE) > 0 ? ((d.totalA / (d.totalA + d.totalE)) * 100).toFixed(0) : 0;
+        
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight:bold;">${nick}</td>
+                <td><span class="val-ponto">${d.sA}</span> / <span class="val-erro">${d.sE}</span></td>
+                <td><span class="val-ponto">${d.rP}</span> / <span class="val-erro">${d.rE}</span></td>
+                <td><span class="val-ponto">${d.aP}</span> / <span class="val-erro">${d.aE}</span></td>
+                <td><span class="val-ponto">${d.bP}</span> / <span class="val-erro">${d.bE}</span></td>
+                <td><span class="eficiencia-badge" style="color:${getDynamicColor(ef)}">${ef}%</span></td>
+            </tr>
+        `;
+    });
+
+    document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV(matchId, matchName);
+    document.getElementById('modal-stats').classList.remove('hidden');
+}
+
+function closeMatchDetails() {
+    document.getElementById('modal-stats').classList.add('hidden');
+}
+
+// --- DOWNLOAD CSV (AJUSTADO PARA PONTO E VÍRGULA) ---
 async function downloadMatchCSV(matchId, matchName) {
     const { data: eventos } = await _supabase.from('eventos').select('*').eq('partida_id', matchId);
     const { data: partida } = await _supabase.from('partidas').select('atletas').eq('id', matchId).single();
     
-    if (!eventos || !partida) return alert("Dados insuficientes para gerar a planilha.");
+    let csv = "\uFEFFATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATA_PONTO;ATA_ERRO;BLO_PONTO;BLO_ERRO;EFICIENCIA\n";
 
-    // Inicializa a estrutura de dados para cada atleta
-    const relatorio = {};
     partida.atletas.forEach(nick => {
-        relatorio[nick] = {
-            SAQUE_ACE: 0, SAQUE_ERRO: 0,
-            REC_PERFEITA: 0, REC_ERRO: 0,
-            ATAQUE_PONTO: 0, ATAQUE_ERRO: 0,
-            BLOQUEIO_PONTO: 0, BLOQUEIO_ERRO: 0,
-            TOTAL_ACERTOS: 0, TOTAL_ERROS: 0
-        };
+        const evs = eventos.filter(e => e.atleta === nick);
+        const sA = evs.filter(e => e.fundamento==='SAQ' && e.resultado==='ACE').length;
+        const sE = evs.filter(e => e.fundamento==='SAQ' && e.resultado==='ERRO').length;
+        const rP = evs.filter(e => e.fundamento==='REC' && e.resultado==='PERFEITA').length;
+        const rE = evs.filter(e => e.fundamento==='REC' && e.resultado==='ERRO').length;
+        const aP = evs.filter(e => e.fundamento==='ATA' && e.resultado==='PONTO').length;
+        const aE = evs.filter(e => e.fundamento==='ATA' && e.resultado==='ERRO').length;
+        const bP = evs.filter(e => e.fundamento==='BLO' && e.resultado==='PONTO').length;
+        const bE = evs.filter(e => e.fundamento==='BLO' && e.resultado==='ERRO').length;
+        
+        const total = sA + sE + rP + rE + aP + aE + bP + bE;
+        const acertos = sA + rP + aP + bP;
+        const ef = total > 0 ? ((acertos / total) * 100).toFixed(1) : 0;
+
+        csv += `${nick};${sA};${sE};${rP};${rE};${aP};${aE};${bP};${bE};${ef}%\n`;
     });
 
-    // Processa os eventos e soma os totais
-    eventos.forEach(e => {
-        const a = e.atleta;
-        if (!relatorio[a]) return;
-
-        if (e.fundamento === 'SAQ') {
-            if (e.resultado === 'ACE') { relatorio[a].SAQUE_ACE++; relatorio[a].TOTAL_ACERTOS++; }
-            else { relatorio[a].SAQUE_ERRO++; relatorio[a].TOTAL_ERROS++; }
-        } 
-        else if (e.fundamento === 'REC') {
-            if (e.resultado === 'PERFEITA') { relatorio[a].REC_PERFEITA++; relatorio[a].TOTAL_ACERTOS++; }
-            else { relatorio[a].REC_ERRO++; relatorio[a].TOTAL_ERROS++; }
-        }
-        else if (e.fundamento === 'ATA') {
-            if (e.resultado === 'PONTO') { relatorio[a].ATAQUE_PONTO++; relatorio[a].TOTAL_ACERTOS++; }
-            else { relatorio[a].ATAQUE_ERRO++; relatorio[a].TOTAL_ERROS++; }
-        }
-        else if (e.fundamento === 'BLO') {
-            if (e.resultado === 'PONTO') { relatorio[a].BLOQUEIO_PONTO++; relatorio[a].TOTAL_ACERTOS++; }
-            else { relatorio[a].BLOQUEIO_ERRO++; relatorio[a].TOTAL_ERROS++; }
-        }
-    });
-
-    // Montagem do CSV (Cabeçalho baseado no seu modelo)
-    let csvContent = "\uFEFF"; // Byte Order Mark para aceitar acentos no Excel
-    csvContent += "ATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATAQUE_PONTO;ATAQUE_ERRO;BLOQUEIO_PONTO;BLOQUEIO_ERRO;TOTAL_PONTOS;TOTAL_ERROS;EFICIENCIA_%\n";
-
-    Object.keys(relatorio).forEach(nick => {
-        const r = relatorio[nick];
-        const totalAcoes = r.TOTAL_ACERTOS + r.TOTAL_ERROS;
-        const eficiencia = totalAcoes > 0 ? ((r.TOTAL_ACERTOS / totalAcoes) * 100).toFixed(1) : 0;
-
-        csvContent += `${nick};${r.SAQUE_ACE};${r.SAQUE_ERRO};${r.REC_PERFEITA};${r.REC_ERRO};${r.ATAQUE_PONTO};${r.ATAQUE_ERRO};${r.BLOQUEIO_PONTO};${r.BLOQUEIO_ERRO};${r.TOTAL_ACERTOS};${r.TOTAL_ERROS};${eficiencia}%\n`;
-    });
-
-    // Download do arquivo
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    link.href = url;
-    const safeName = matchName.replace(/\s+/g, '_').toLowerCase();
-    link.setAttribute("download", `VStats_Relatorio_${safeName}.csv`);
-    document.body.appendChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `VStats_${matchName.replace(/\s+/g, '_')}.csv`;
     link.click();
-    document.body.removeChild(link);
 }
 
-// NOVO: Histórico de Partidas
+// --- CARREGAR HISTÓRICO ATUALIZADO ---
 async function loadMatchHistory(u) {
     const historyContainer = document.getElementById('history-list');
-    historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Carregando histórico...</p>';
+    historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Carregando partidas...</p>';
 
     let query = _supabase.from('partidas').select('*');
-    
-    if (u.role === 'treinador') {
-        query = query.eq('treinador', u.nick);
-    } else {
-        query = query.contains('atletas', [u.nick]);
-    }
+    if (u.role === 'treinador') query = query.eq('treinador', u.nick);
+    else query = query.contains('atletas', [u.nick]);
 
-    const { data, error } = await query.order('id', { ascending: false }).limit(10);
-
+    const { data, error } = await query.order('created_at', { ascending: false }).limit(10);
     historyContainer.innerHTML = '';
 
-    if (error || !data || data.length === 0) {
-        historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida encontrada.</p>';
+    if (!data || data.length === 0) {
+        historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida registrada.</p>';
         return;
     }
 
     data.forEach(p => {
         const matchName = p.nome || `Partida #${p.id}`;
-        const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString('pt-BR') : 'Data Desconhecida';
+        const dateStr = new Date(p.created_at).toLocaleDateString('pt-BR');
         historyContainer.innerHTML += `
-            <div style="background: var(--bg-main); padding: 10px; border-radius: 8px; border: 1px solid var(--bg-card); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h4 style="font-size:12px; color:var(--white); margin-bottom:2px; font-family: 'Orbitron', sans-serif;">${matchName}</h4>
-                    <span style="font-size:10px; color:#9CA3AF;">Coach: ${p.treinador} | ${dateStr}</span>
+            <div class="athlete-item" style="margin-bottom:8px; padding: 12px;" onclick="openMatchDetails('${p.id}', '${matchName}', '${p.treinador}', '${dateStr}')">
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-family:'Orbitron'; font-size:14px; color:var(--primary);">${matchName}</span>
+                    <span style="font-size:10px; color:#9CA3AF;">${dateStr} • Coach: ${p.treinador}</span>
                 </div>
-                <button class="btn" style="padding: 6px 12px; font-size: 10px; width: auto; background: var(--bg-panel);" onclick="downloadMatchCSV('${p.id}', '${matchName}')">Baixar Planilha</button>
+                <span style="font-size:18px; color:var(--primary);">➔</span>
             </div>
         `;
     });
@@ -909,6 +953,37 @@ function enterApp() {
 }
 
 function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
+
+
 </script>
+<div id="modal-stats" class="modal-overlay hidden">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeMatchDetails()">×</span>
+        <h2 id="modal-match-title" style="font-family: 'Orbitron'; color: var(--primary); margin-bottom: 5px;">DETALHES DA PARTIDA</h2>
+        <p id="modal-match-info" style="font-size: 12px; color: #9CA3AF; margin-bottom: 20px;"></p>
+        
+        <div class="stats-table-wrapper">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>ATLETA</th>
+                        <th>SAQUE (A/E)</th>
+                        <th>REC (P/E)</th>
+                        <th>ATAQUE (P/E)</th>
+                        <th>BLOCO (P/E)</th>
+                        <th>EFICIÊNCIA</th>
+                    </tr>
+                </thead>
+                <tbody id="modal-table-body">
+                    </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 25px; display: flex; gap: 10px;">
+            <button class="btn btn-solid" id="btn-download-csv">Baixar Planilha Completa</button>
+            <button class="btn" style="border-color: #666; color: #999;" onclick="closeMatchDetails()">Fechar</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
