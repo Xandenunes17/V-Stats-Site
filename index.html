@@ -305,7 +305,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 
         <div id="page-search" class="app-page">
             <h2 style="margin-bottom:15px; font-size: 20px; color: var(--white);">🔍 Base de Jogadores</h2>
-            <input type="text" id="search-input" placeholder="Buscar atleta por nome..." oninput="renderSearch()">
+            <input type="text" id="search-input" placeholder="Buscar atleta por nome..." oninput="debouncedRenderSearch()">
             <div class="filter-row">
                 <select id="search-pos" onchange="renderSearch()">
                     <option value="">Posição (Todas)</option>
@@ -474,6 +474,16 @@ const BIBLIOTECA_IMAGENS = {
 const STAT_KEYS = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
 const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
 
+// Utilitário de debounce: adia a execução até o usuário parar de digitar por `delay` ms
+function debounce(fn, delay) {
+    let timer = null;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+}
+const debouncedRenderSearch = debounce(() => renderSearch(), 300);
+
 let currentUserData = null;
 let viewedUserData = null;
 let radarChart = null;
@@ -530,15 +540,6 @@ function getDynamicColor(value, alpha = 1) {
     return `hsla(${hue}, 85%, 50%, ${alpha})`;
 }
 
-function getBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-}
-
 function toggleAuthMode() { 
     isRegisterMode = !isRegisterMode; 
     document.getElementById('auth-title').innerText = isRegisterMode ? "Criar Nova Conta" : "Entrar no Sistema"; 
@@ -583,7 +584,18 @@ async function saveProfileUpdates() {
     let photoData = currentUserData.photo; 
 
     if (fileInput.files && fileInput.files[0]) {
-        try { photoData = await getBase64(fileInput.files[0]); } catch (error) { return alert("Erro na imagem."); }
+        const file = fileInput.files[0];
+        const ext = file.name.split('.').pop();
+        const filePath = `${currentUserData.nick}-${Date.now()}.${ext}`;
+
+        const { error: uploadError } = await _supabase.storage
+            .from('avatars')
+            .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+        if (uploadError) return alert("Erro no upload da imagem: " + uploadError.message);
+
+        const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
+        photoData = urlData.publicUrl;
     }
 
     const update = { team: document.getElementById('update-team').value, city: document.getElementById('update-city').value, pos: document.getElementById('update-pos').value, photo: photoData };
@@ -788,6 +800,22 @@ async function registerEvent(fundamento, resultado) {
     if(error) console.error("Falha ao salvar evento no DB");
 }
 
+// Normaliza o campo "atletas" de uma partida para sempre virar um array limpo de nicks,
+// independente de ter sido salvo como array nativo ou como string (resolve o bug dos colchetes amontoados)
+function parseAtletasList(atletasField) {
+    let lista = [];
+    if (typeof atletasField === 'string') {
+        lista = atletasField.replace(/[\[\]"'{}]/g, '').split(',').map(n => n.trim());
+    } else if (Array.isArray(atletasField)) {
+        if (atletasField.length === 1 && typeof atletasField[0] === 'string' && atletasField[0].includes(',')) {
+            lista = atletasField[0].replace(/[\[\]"'{}]/g, '').split(',').map(n => n.trim());
+        } else {
+            lista = atletasField;
+        }
+    }
+    return lista.filter(n => n);
+}
+
 // --- ABRIR MODAL COM TABELA DE ESTATÍSTICAS ---
 async function openMatchDetails(matchId, matchName, coach, date) {
     const [{ data: eventos }, { data: partida }] = await Promise.all([
@@ -806,18 +834,7 @@ async function openMatchDetails(matchId, matchName, coach, date) {
     }
 
     const rowsHtml = [];
-
-    // TRAVA DE SEGURANÇA: Garante que os nomes sejam um array limpo (Resolve o Bug dos colchetes amontoados)
-    let listaAtletas = [];
-    if (typeof partida.atletas === 'string') {
-        listaAtletas = partida.atletas.replace(/[\[\]"'{}]/g, '').split(',').map(n => n.trim());
-    } else if (Array.isArray(partida.atletas)) {
-        if (partida.atletas.length === 1 && partida.atletas[0].includes(',')) {
-            listaAtletas = partida.atletas[0].replace(/[\[\]"'{}]/g, '').split(',').map(n => n.trim());
-        } else {
-            listaAtletas = partida.atletas;
-        }
-    }
+    const listaAtletas = parseAtletasList(partida.atletas);
 
     // Loop individual garantido para cada atleta real
     listaAtletas.forEach(nick => {
@@ -919,13 +936,13 @@ async function loadMatchHistory(u) {
     
     historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">A carregar partidas...</p>';
 
-    // Tente simplificar a consulta se o .or estiver a falhar
-    const { data, error } = await _supabase
+    // Busca só as colunas usadas e limita às partidas mais recentes (evita trazer a tabela inteira
+    // toda vez que o perfil abre — isso é o que estava deixando a abertura do perfil lenta)
+    const { data: allData, error } = await _supabase
         .from('partidas')
-        .select('*')
-        // Certifique-se que o nick não tem espaços ou caracteres especiais
-        .or(`treinador.eq.${u.nick},atletas.cs.{"${u.nick}"}`) 
-        .order('created_at', { ascending: false });
+        .select('id,nome,treinador,atletas,created_at')
+        .order('created_at', { ascending: false })
+        .limit(300);
 
     if (error) {
         console.error("Erro no Supabase:", error.message);
@@ -933,7 +950,11 @@ async function loadMatchHistory(u) {
         return;
     }
 
-    if (!data || data.length === 0) {
+    const data = (allData || []).filter(p => 
+        p.treinador === u.nick || parseAtletasList(p.atletas).includes(u.nick)
+    );
+
+    if (data.length === 0) {
         historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida encontrada.</p>';
         return;
     }
@@ -969,7 +990,7 @@ async function endMatch() {
 
 async function getPlayerStats(nick) {
     let stats = { SAQ: { total:0, acerto:0 }, REC: { total:0, acerto:0 }, ATA: { total:0, acerto:0 }, BLO: { total:0, acerto:0 } };
-    const { data } = await _supabase.from('eventos').select('*').eq('atleta', nick);
+    const { data } = await _supabase.from('eventos').select('fundamento,resultado').eq('atleta', nick);
     if(data) {
         data.forEach(e => {
             if(stats[e.fundamento]) {
