@@ -471,6 +471,9 @@ const BIBLIOTECA_IMAGENS = {
     cidades: { "Amargosa": `${GITHUB_BASE}/Amargosa-Bandeira.png`, "Salvador": `${GITHUB_BASE}/Salvador-Bandeira.png`, "Brasil": `${GITHUB_BASE}/Brasil-Bandeira.png` }
 };
 
+const STAT_KEYS = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
+const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
+
 let currentUserData = null;
 let viewedUserData = null;
 let radarChart = null;
@@ -479,6 +482,28 @@ let isRegisterMode = false;
 let currentMatchId = null;
 let currentMatchName = "";
 let liveMatchStats = {}; 
+
+// Função central de cálculo de stats/OVR (evita repetir a mesma fórmula em displayCard, renderSearch e renderRanking)
+function computeOverall(u) {
+    let sum = 0; const s = {};
+    STAT_KEYS.forEach(k => {
+        let val = (u.stats && u.stats[k]) || 50;
+        let avgStars = 0;
+        if (u.ratings && u.ratings[k]) {
+            const votos = Object.values(u.ratings[k]);
+            if (votos.length > 0) {
+                const media = votos.reduce((a, b) => a + b, 0) / votos.length;
+                val = (val + (media * 3)) / 4;
+                avgStars = Math.round(media / 10);
+            }
+        }
+        val = Math.max(1, Math.min(100, val));
+        s[k] = { value: Math.round(val), avgStars };
+        sum += val;
+    });
+    const ovr = Math.max(1, Math.min(100, Math.round(sum / 6)));
+    return { s, ovr };
+}
 
 window.onload = () => {
     const savedUser = localStorage.getItem('vstats_user');
@@ -593,7 +618,7 @@ function displayCard(u) {
     document.getElementById('card-nick').innerText = u.nick;
     document.getElementById('card-pos').innerText = u.pos;
     document.getElementById('card-details').innerText = `${u.city} | ${u.team}`;
-    document.getElementById('card-photo').src = u.photo || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png';
+    document.getElementById('card-photo').src = u.photo || DEFAULT_AVATAR;
     
     document.getElementById('display-team-logo').src = BIBLIOTECA_IMAGENS.times[u.team] || '';
     document.getElementById('display-city-flag').src = BIBLIOTECA_IMAGENS.cidades[u.city] || '';
@@ -601,10 +626,10 @@ function displayCard(u) {
     document.getElementById('display-city-flag').style.display = BIBLIOTECA_IMAGENS.cidades[u.city] ? 'block' : 'none';
     document.getElementById('btn-edit-trigger').style.display = isOwner ? 'block' : 'none';
 
-    const grid = document.getElementById('card-stats-grid'); grid.innerHTML = '';
-    let sum = 0; const keys = ['ATA','LEV','BLO','DEF','PAS','SAQ']; const vals = [];
+    const grid = document.getElementById('card-stats-grid');
+    let sum = 0; const vals = []; const boxesHtml = [];
     
-    keys.forEach(k => {
+    STAT_KEYS.forEach(k => {
         let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 50;
         let avgStars = 0;
         if (u.ratings && u.ratings[k] && typeof u.ratings[k] === 'object') {
@@ -624,8 +649,9 @@ function displayCard(u) {
             for(let i=1; i<=5; i++) { starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`; }
             starsHtml += '</div>';
         }
-        grid.innerHTML += `<div class="stat-box" style="border-color: ${getDynamicColor(baseVal, 0.3)};"><span class="stat-name" style="color: ${dynamicColor};">${k}</span><span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>${starsHtml}</div>`;
+        boxesHtml.push(`<div class="stat-box" style="border-color: ${getDynamicColor(baseVal, 0.3)};"><span class="stat-name" style="color: ${dynamicColor};">${k}</span><span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>${starsHtml}</div>`);
     });
+    grid.innerHTML = boxesHtml.join('');
     
     const ovr = Math.max(1, Math.min(100, Math.round(sum/6)));
     const ovrColor = getDynamicColor(ovr);
@@ -651,7 +677,7 @@ function initChart(data, baseColor) {
 
     radarChart = new Chart(ctx, {
         type: 'radar',
-        data: { labels: ['ATA','LEV','BLO','DEF','PAS','SAQ'], datasets: [{ data, backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#0F1115', pointRadius: 4, pointHoverRadius: 6 }] },
+        data: { labels: STAT_KEYS, datasets: [{ data, backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#0F1115', pointRadius: 4, pointHoverRadius: 6 }] },
         options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 20 }, grid: { color: 'rgba(255,255,255,0.05)' }, angleLines: { color: 'rgba(255,255,255,0.05)' }, pointLabels: { color: '#E5E7EB', font: { family: 'Orbitron', weight: 'bold', size: 10 } } } }, plugins: { legend: { display: false } } }
     });
 }
@@ -695,17 +721,16 @@ async function loadPlayersForMatch() {
     const searchInput = document.getElementById('search-player-match');
     
     if(searchInput) searchInput.value = ''; // Limpa a busca ao abrir
-    list.innerHTML = '';
     
     if(data) {
-        data.forEach(a => {
-            // Importante: Manter a classe 'player-cb-label' para o filtro funcionar
-            list.innerHTML += `
+        // Importante: Manter a classe 'player-cb-label' para o filtro funcionar
+        list.innerHTML = data.map(a => `
                 <label class="player-cb-label">
                     <input type="checkbox" value="${a.nick}" class="match-player-cb"> 
                     ${a.nick} <span style="color:var(--primary); font-size:10px; margin-left:5px;">(${a.pos})</span>
-                </label>`;
-        });
+                </label>`).join('');
+    } else {
+        list.innerHTML = '';
     }
 }
 
@@ -765,19 +790,22 @@ async function registerEvent(fundamento, resultado) {
 
 // --- ABRIR MODAL COM TABELA DE ESTATÍSTICAS ---
 async function openMatchDetails(matchId, matchName, coach, date) {
-    const { data: eventos } = await _supabase.from('eventos').select('*').eq('partida_id', matchId);
-    const { data: partida } = await _supabase.from('partidas').select('atletas').eq('id', matchId).single();
+    const [{ data: eventos }, { data: partida }] = await Promise.all([
+        _supabase.from('eventos').select('*').eq('partida_id', matchId),
+        _supabase.from('partidas').select('atletas').eq('id', matchId).single()
+    ]);
     
     document.getElementById('modal-match-title').innerText = matchName.toUpperCase();
     document.getElementById('modal-match-info').innerText = `${date} | Treinador: ${coach}`;
     
     const tbody = document.getElementById('modal-table-body');
-    tbody.innerHTML = '';
 
     if (!partida || !eventos) {
         tbody.innerHTML = '<tr><td colspan="6">Dados não encontrados.</td></tr>';
         return;
     }
+
+    const rowsHtml = [];
 
     // TRAVA DE SEGURANÇA: Garante que os nomes sejam um array limpo (Resolve o Bug dos colchetes amontoados)
     let listaAtletas = [];
@@ -809,7 +837,7 @@ async function openMatchDetails(matchId, matchName, coach, date) {
         const total = sA + sE + rP + rE + aP + aE + bP + bE;
         const ef = total > 0 ? (((sA + rP + aP + bP) / total) * 100).toFixed(0) : 0;
 
-        tbody.innerHTML += `
+        rowsHtml.push(`
             <tr>
                 <td>${nick.toUpperCase()}</td>
                 <td><span class="val-ponto">${sA}</span><span class="val-divider">|</span><span class="val-erro">${sE}</span></td>
@@ -818,8 +846,10 @@ async function openMatchDetails(matchId, matchName, coach, date) {
                 <td><span class="val-ponto">${bP}</span><span class="val-divider">|</span><span class="val-erro">${bE}</span></td>
                 <td><span class="ef-badge">${ef}%</span></td>
             </tr>
-        `;
+        `);
     });
+
+    tbody.innerHTML = rowsHtml.join('');
 
     // Passa apenas o nome da partida para o botão baixar ler a tabela limpa
     document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV(matchName);
@@ -908,10 +938,10 @@ async function loadMatchHistory(u) {
         return;
     }
 
-    data.forEach(p => {
+    historyContainer.innerHTML = data.map(p => {
         const matchName = p.nome || `Partida #${p.id}`;
         const dateStr = new Date(p.created_at).toLocaleDateString('pt-BR');
-        historyContainer.innerHTML += `
+        return `
             <div class="athlete-item" style="margin-bottom:8px; padding: 12px; cursor:pointer;" onclick="openMatchDetails('${p.id}', '${matchName}', '${p.treinador}', '${dateStr}')">
                 <div style="display:flex; flex-direction:column;">
                     <span style="font-family:'Orbitron'; font-size:14px; color:var(--primary);">${matchName.toUpperCase()}</span>
@@ -920,7 +950,7 @@ async function loadMatchHistory(u) {
                 <span style="font-size:18px; color:var(--primary);">➔</span>
             </div>
         `;
-    });
+    }).join('');
 }
 
 // --- FUNÇÃO DE ENCERRAR ATUALIZADA ---
@@ -965,24 +995,17 @@ async function renderSearch() {
     if(city) query = query.eq('city', city);
 
     const { data } = await query.limit(30);
-    const list = document.getElementById('athlete-list'); list.innerHTML = '';
-    
-    data?.forEach(u => {
-        let sum = 0; 
-        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 50;
-            if(u.ratings && u.ratings[k]) {
-                const votos = Object.values(u.ratings[k]);
-                if(votos.length > 0) val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length * 3)) / 4;
-            }
-            sum += Math.max(1, Math.min(100, val));
-        });
-        const ovr = Math.round(sum/6);
+    const list = document.getElementById('athlete-list');
+
+    const html = (data || []).map(u => {
+        const { ovr } = computeOverall(u);
         const ovrColor = getDynamicColor(ovr);
-        const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
-        
-        list.innerHTML += `<div class="athlete-item" style="border-left: 4px solid ${ovrColor};" onclick="loadOther('${u.nick}')"><div class="athlete-info"><img src="${avatar}"><div><h4>${u.nick}</h4><p>${u.pos} | ${u.team}</p></div></div><div class="search-ovr" style="border-color: ${ovrColor};"><small style="color: ${ovrColor};">OVR</small><span style="color: ${ovrColor};">${ovr}</span></div></div>`;
-    });
+        const avatar = u.photo || DEFAULT_AVATAR;
+
+        return `<div class="athlete-item" style="border-left: 4px solid ${ovrColor};" onclick="loadOther('${u.nick}')"><div class="athlete-info"><img src="${avatar}"><div><h4>${u.nick}</h4><p>${u.pos} | ${u.team}</p></div></div><div class="search-ovr" style="border-color: ${ovrColor};"><small style="color: ${ovrColor};">OVR</small><span style="color: ${ovrColor};">${ovr}</span></div></div>`;
+    }).join('');
+
+    list.innerHTML = html;
 }
 
 async function renderRanking() {
@@ -995,32 +1018,29 @@ async function renderRanking() {
     if(!data) return;
 
     const list = data.map(u => {
-        let sum = 0; const s = {}; 
-        ['ATA','LEV','BLO','DEF','PAS','SAQ'].forEach(k => {
-            let val = u.stats[k] || 50; 
-            if(u.ratings && u.ratings[k]) {
-                const votos = Object.values(u.ratings[k]);
-                if(votos.length > 0) val = (val + (votos.reduce((a,b)=>a+b,0) / votos.length * 3)) / 4;
-            }
-            val = Math.max(1, Math.min(100, val));
-            s[k] = Math.round(val); sum += val;
-        });
-        s.OVR = Math.round(sum/6); return {...u, s};
+        const { s, ovr } = computeOverall(u);
+        const flatStats = {}; 
+        STAT_KEYS.forEach(k => flatStats[k] = s[k].value);
+        flatStats.OVR = ovr;
+        return {...u, s: flatStats};
     }).sort((a,b) => b.s[stat] - a.s[stat]);
 
-    const listEl = document.getElementById('ranking-list'); listEl.innerHTML = '';
-    list.slice(0, 50).forEach((u, i) => {
-        let badge = `<span style="font-size:16px; color:var(--text-light); width:25px; text-align:center;">${i+1}º</span>`;
-        if(i===0) badge = `<span style="font-size:22px;">🥇</span>`;
-        if(i===1) badge = `<span style="font-size:22px;">🥈</span>`;
-        if(i===2) badge = `<span style="font-size:22px;">🥉</span>`;
+    const listEl = document.getElementById('ranking-list');
+    const medals = ['🥇','🥈','🥉'];
+
+    const html = list.slice(0, 50).map((u, i) => {
+        const badge = medals[i] 
+            ? `<span style="font-size:22px;">${medals[i]}</span>` 
+            : `<span style="font-size:16px; color:var(--text-light); width:25px; text-align:center;">${i+1}º</span>`;
         
-        const avatar = u.photo || "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
+        const avatar = u.photo || DEFAULT_AVATAR;
         const statValue = u.s[stat];
         const statColor = getDynamicColor(statValue);
 
-        listEl.innerHTML += `<div class="athlete-item" style="border-left: 4px solid ${statColor};" onclick="loadOther('${u.nick}')"><div class="athlete-info">${badge}<img src="${avatar}"><div><h4>${u.nick}</h4><p>${u.pos}</p></div></div><div class="search-ovr" style="border-color: ${statColor};"><small style="color: ${statColor};">${stat}</small><span style="color: ${statColor};">${statValue}</span></div></div>`;
-    });
+        return `<div class="athlete-item" style="border-left: 4px solid ${statColor};" onclick="loadOther('${u.nick}')"><div class="athlete-info">${badge}<img src="${avatar}"><div><h4>${u.nick}</h4><p>${u.pos}</p></div></div><div class="search-ovr" style="border-color: ${statColor};"><small style="color: ${statColor};">${stat}</small><span style="color: ${statColor};">${statValue}</span></div></div>`;
+    }).join('');
+
+    listEl.innerHTML = html;
 }
 
 async function loadOther(nick) { 
