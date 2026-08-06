@@ -492,6 +492,7 @@ let isRegisterMode = false;
 let currentMatchId = null;
 let currentMatchName = "";
 let liveMatchStats = {}; 
+let historyRequestId = 0; // usado para descartar respostas de histórico que chegam atrasadas
 
 // Função central de cálculo de stats/OVR (evita repetir a mesma fórmula em displayCard, renderSearch e renderRanking)
 function computeOverall(u) {
@@ -763,7 +764,10 @@ async function startMatch() {
         atletas: selectedPlayers 
     }]).select();
 
-    if(error) return alert("Erro ao criar partida. Certifique-se de que criou a coluna 'nome' no Supabase.");
+    if(error) {
+        console.error("Erro ao criar partida:", error);
+        return alert("Erro ao criar partida: " + error.message + (error.hint ? " (" + error.hint + ")" : ""));
+    }
 
     currentMatchId = data[0].id;
     currentMatchName = mName;
@@ -933,29 +937,67 @@ async function downloadMatchCSV(matchName) {
 async function loadMatchHistory(u) {
     const historyContainer = document.getElementById('history-list');
     if (!historyContainer) return;
-    
+
+    const myRequestId = ++historyRequestId; // marca esta chamada como a mais recente
     historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">A carregar partidas...</p>';
 
-    // Busca só as colunas usadas e limita às partidas mais recentes (evita trazer a tabela inteira
-    // toda vez que o perfil abre — isso é o que estava deixando a abertura do perfil lenta)
-    const { data: allData, error } = await _supabase
+    // Busca direto no servidor só as partidas em que o usuário é o treinador OU está
+    // listado como atleta (usando o operador "contains" do Postgres). Isso evita o bug
+    // antigo: antes buscávamos só as 300 partidas mais recentes de TODO o sistema e
+    // filtrávamos no navegador — se o total de partidas passasse de 300, partidas mais
+    // antigas do próprio usuário ficavam de fora e sumiam do histórico dele.
+    const { data: ownData, error: ownError } = await _supabase
         .from('partidas')
         .select('id,nome,treinador,atletas,created_at')
-        .order('created_at', { ascending: false })
-        .limit(300);
+        .eq('treinador', u.nick)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error("Erro no Supabase:", error.message);
-        historyContainer.innerHTML = '<p style="color:red;">Erro ao carregar dados.</p>';
+    const { data: playedData, error: playedError } = await _supabase
+        .from('partidas')
+        .select('id,nome,treinador,atletas,created_at')
+        .contains('atletas', [u.nick])
+        .order('created_at', { ascending: false });
+
+    if (ownError && playedError) {
+        console.error("Erro no Supabase:", ownError.message, playedError.message);
+        if (myRequestId === historyRequestId) historyContainer.innerHTML = '<p style="color:red;">Erro ao carregar dados.</p>';
         return;
     }
 
-    const data = (allData || []).filter(p => 
-        p.treinador === u.nick || parseAtletasList(p.atletas).includes(u.nick)
-    );
+    // Junta os dois resultados e remove duplicadas (caso o treinador também esteja na lista de atletas)
+    const merged = [...(ownData || []), ...(playedData || [])];
+    const seen = new Set();
+    let data = merged.filter(p => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+    });
+
+    // Fallback: se "atletas" estiver salvo em formatos antigos/mistos (string ao invés de
+    // array nativo), o .contains() do Postgres pode não bater. Nesse caso, busca tudo mais
+    // recente como rede de segurança e filtra com o parser tolerante que já existia.
+    if (playedError) {
+        console.warn("Fallback do histórico ativado (coluna 'atletas' em formato inconsistente):", playedError.message);
+        const { data: fallbackData } = await _supabase
+            .from('partidas')
+            .select('id,nome,treinador,atletas,created_at')
+            .order('created_at', { ascending: false });
+        (fallbackData || []).forEach(p => {
+            if (!seen.has(p.id) && (p.treinador === u.nick || parseAtletasList(p.atletas).includes(u.nick))) {
+                seen.add(p.id);
+                data.push(p);
+            }
+        });
+    }
+
+    data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    // Se enquanto essa busca rodava outra mais nova foi disparada (troca rápida de tela,
+    // por exemplo), essa resposta está desatualizada — não sobrescreve o que já está na tela.
+    if (myRequestId !== historyRequestId) return;
 
     if (data.length === 0) {
-        historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida encontrada.</p>';
+        if (myRequestId === historyRequestId) historyContainer.innerHTML = '<p style="font-size:12px; color:#9CA3AF;">Nenhuma partida encontrada.</p>';
         return;
     }
 
@@ -1067,7 +1109,12 @@ async function renderRanking() {
 async function loadOther(nick) { 
     const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
     if(data) { 
-        showPage('profile'); displayCard(data); 
+        // Não usamos showPage('profile') aqui de propósito: ela dispara displayCard(currentUserData)
+        // por dentro, o que criava DUAS buscas de histórico simultâneas (a sua e a do atleta visto)
+        // e, se a sua demorasse mais, sobrescrevia o histórico certo alguns segundos depois.
+        document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
+        document.getElementById('page-profile').classList.remove('hidden');
+        displayCard(data); 
         document.getElementById('btn-back').style.display='block'; 
         document.getElementById('btn-logout').classList.add('hidden'); 
     } 
