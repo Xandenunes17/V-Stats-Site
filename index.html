@@ -213,6 +213,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .star-btn { cursor: pointer; font-size: 14px; color: var(--star-off); transition: color .2s, transform .15s; }
 .star-btn:hover, .star-btn.active { color: var(--accent-gold); text-shadow: 0 0 6px rgba(245,185,66,.6); }
 .star-btn:hover { transform: scale(1.15); }
+.rating-count { display: block; font-size: 8px; color: var(--text-dim); margin-top: 3px; }
 
 .filter-row { display: flex; gap: 10px; margin-bottom: 20px; }
 .filter-row select { margin: 0; }
@@ -648,6 +649,18 @@ const BIBLIOTECA_IMAGENS = {
 };
 
 const STAT_KEYS = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
+
+// Sistema de pontuação das estrelas: antes cada estrela valia *20 (só 20/40/60/80/100,
+// nunca chegava no 1 nem cobria o meio da escala direito). Agora cobre 1 a 100 de fato.
+const STAR_POINTS = { 1: 1, 2: 25, 3: 50, 4: 75, 5: 100 };
+function pointsToStars(points) {
+    let best = 1, bestDiff = Infinity;
+    for (const star in STAR_POINTS) {
+        const diff = Math.abs(STAR_POINTS[star] - points);
+        if (diff < bestDiff) { bestDiff = diff; best = Number(star); }
+    }
+    return best;
+}
 const DEFAULT_AVATAR = "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png";
 
 // Utilitário de debounce: adia a execução até o usuário parar de digitar por `delay` ms
@@ -675,17 +688,18 @@ function computeOverall(u) {
     let sum = 0; const s = {};
     STAT_KEYS.forEach(k => {
         let val = (u.stats && u.stats[k]) || 50;
-        let avgStars = 0;
+        let avgStars = 0, voteCount = 0;
         if (u.ratings && u.ratings[k]) {
             const votos = Object.values(u.ratings[k]);
-            if (votos.length > 0) {
-                const media = votos.reduce((a, b) => a + b, 0) / votos.length;
+            voteCount = votos.length;
+            if (voteCount > 0) {
+                const media = votos.reduce((a, b) => a + b, 0) / voteCount;
                 val = (val + (media * 3)) / 4;
-                avgStars = Math.round(media / 10);
+                avgStars = pointsToStars(media);
             }
         }
         val = Math.max(1, Math.min(100, val));
-        s[k] = { value: Math.round(val), avgStars };
+        s[k] = { value: Math.round(val), avgStars, voteCount };
         sum += val;
     });
     const ovr = Math.max(1, Math.min(100, Math.round(sum / 6)));
@@ -784,7 +798,7 @@ async function saveProfileUpdates() {
 
 async function rateStat(statKey, stars) {
     if(!viewedUserData || viewedUserData.nick === currentUserData.nick) return;
-    const points = stars * 20; const voterNick = currentUserData.nick; 
+    const points = STAR_POINTS[stars]; const voterNick = currentUserData.nick; 
     let ratings = viewedUserData.ratings || {};
     if (!ratings[statKey]) ratings[statKey] = {};
     ratings[statKey][voterNick] = points;
@@ -812,33 +826,29 @@ function displayCard(u) {
     document.getElementById('btn-edit-trigger').style.display = isOwner ? 'block' : 'none';
 
     const grid = document.getElementById('card-stats-grid');
-    let sum = 0; const vals = []; const boxesHtml = [];
+    const { s, ovr } = computeOverall(u);
+    const boxesHtml = [];
     
     STAT_KEYS.forEach(k => {
-        let baseVal = (u.stats && u.stats[k]) ? u.stats[k] : 50;
-        let avgStars = 0;
-        if (u.ratings && u.ratings[k] && typeof u.ratings[k] === 'object') {
-            const votosArray = Object.values(u.ratings[k]);
-            if (votosArray.length > 0) {
-                const mediaComunidade = votosArray.reduce((a, b) => a + b, 0) / votosArray.length;
-                baseVal = Math.round((baseVal + (mediaComunidade * 3)) / 4);
-                avgStars = Math.round(mediaComunidade / 10);
-            }
-        }
-        baseVal = Math.max(1, Math.min(100, baseVal));
-        sum += baseVal; vals.push(baseVal);
-        
+        const baseVal = s[k].value;
         const dynamicColor = getDynamicColor(baseVal);
-        let starsHtml = isOwner ? '' : '<div class="stars-container">';
-        if(!isOwner) {
-            for(let i=1; i<=5; i++) { starsHtml += `<span class="star-btn ${i <= avgStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`; }
+
+        // As estrelas mostram A SUA avaliação (fica marcada pra você, mesmo que a média da comunidade seja outra).
+        // A média da comunidade continua entrando no cálculo do valor do stat, só não é isso que aparece marcado.
+        const myPoints = (!isOwner && u.ratings && u.ratings[k]) ? u.ratings[k][currentUserData.nick] : undefined;
+        const myStars = myPoints ? pointsToStars(myPoints) : 0;
+
+        let starsHtml = '';
+        if (!isOwner) {
+            starsHtml = '<div class="stars-container">';
+            for(let i=1; i<=5; i++) { starsHtml += `<span class="star-btn ${i <= myStars ? 'active' : ''}" onclick="rateStat('${k}', ${i})">★</span>`; }
             starsHtml += '</div>';
+            if (s[k].voteCount > 0) starsHtml += `<span class="rating-count">${s[k].voteCount} aval. • média ${s[k].avgStars}★</span>`;
         }
         boxesHtml.push(`<div class="stat-box" style="border-color: ${getDynamicColor(baseVal, 0.3)};"><span class="stat-name" style="color: ${dynamicColor};">${k}</span><span class="stat-num" style="color: ${dynamicColor};">${baseVal}</span>${starsHtml}</div>`);
     });
     grid.innerHTML = boxesHtml.join('');
     
-    const ovr = Math.max(1, Math.min(100, Math.round(sum/6)));
     const ovrColor = getDynamicColor(ovr);
     const ovrWrapper = document.getElementById('ovr-wrapper');
     ovrWrapper.style.borderColor = ovrColor;
@@ -846,6 +856,7 @@ function displayCard(u) {
     const ovrText = document.getElementById('card-ovr');
     ovrText.innerText = ovr; ovrText.style.color = ovrColor;
 
+    const vals = STAT_KEYS.map(k => s[k].value);
     requestAnimationFrame(() => requestAnimationFrame(() => initChart(vals, ovrColor)));
     
     loadBarChart(u.nick); 
