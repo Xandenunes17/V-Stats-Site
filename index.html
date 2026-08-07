@@ -284,6 +284,29 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .event-grid .btn:hover { color: var(--bg-main); background: var(--info); box-shadow: 0 0 18px rgba(76,141,255,.4); }
 .event-grid .btn.err:hover { background: var(--danger); box-shadow: 0 0 18px rgba(255,92,92,.4); }
 
+/* ---------- Painel de scout: grupos de fundamentos (Saque, Bloqueio, Passe, Contra, Ataque, Defesa) ---------- */
+.fundamento-group { margin-top: 16px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.1); }
+.fundamento-group:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.fundamento-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px; font-weight: bold; }
+.fundamento-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.out-btn {
+    flex: 1 1 auto; min-width: 78px; padding: 11px 8px; border-radius: var(--radius-sm);
+    background: transparent; cursor: pointer; font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .3px; font-family: var(--font-body);
+    transition: transform .15s var(--ease), background .2s, box-shadow .2s, color .2s;
+    border: 1px solid var(--bg-elevated); color: var(--text-light);
+}
+.out-btn:active { transform: scale(0.95); }
+.out-btn.out-point { border-color: var(--primary); color: var(--primary); }
+.out-btn.out-point:hover { background: var(--primary); color: var(--bg-main); box-shadow: var(--glow); }
+.out-btn.out-neutral { border-color: var(--info); color: var(--info); }
+.out-btn.out-neutral:hover { background: var(--info); color: var(--bg-main); box-shadow: 0 0 18px rgba(76,141,255,.4); }
+.out-btn.out-negative { border-color: var(--danger); color: var(--danger); }
+.out-btn.out-negative:hover { background: var(--danger); color: var(--white); box-shadow: 0 0 18px rgba(255,92,92,.4); }
+
+.team-row td { background: var(--bg-elevated) !important; color: var(--primary) !important; font-weight: 800; }
+.team-row td:first-child { color: var(--white) !important; }
+
 /* ---------- Modal ---------- */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -297,7 +320,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     box-shadow: 0 0 40px var(--primary-glow), var(--shadow-card);
     border-radius: var(--radius-lg);
     padding: 30px; position: relative; max-height: 90vh; overflow-y: auto;
-    width: 100%; max-width: 900px;
+    width: 100%; max-width: 1100px;
 }
 .modal-close {
     position: absolute; top: 15px; right: 18px; font-size: 26px; line-height: 1; cursor: pointer;
@@ -311,9 +334,9 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .legend-row .ok { color: var(--primary); } .legend-row .bad { color: var(--danger); }
 .table-scroll { overflow-x: auto; }
 
-.stats-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
-.stats-table th { background: transparent; color: var(--text-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; padding: 10px; border-bottom: 1px solid var(--bg-card); }
-.stats-table td { background: var(--bg-card); padding: 15px 10px; color: var(--white); text-align: center; border: none; }
+.stats-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 12px; }
+.stats-table th { background: transparent; color: var(--text-dim); font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding: 6px 8px; border-bottom: 1px solid var(--bg-card); white-space: nowrap; }
+.stats-table td { background: var(--bg-card); padding: 9px 8px; color: var(--white); text-align: center; border: none; white-space: nowrap; }
 .stats-table td:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); text-align: left; font-weight: bold; padding-left: 20px; color: var(--primary); font-family: var(--font-display); }
 .stats-table td:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 
@@ -535,19 +558,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
                     Selecione um jogador para avaliar...
                 </div>
 
-                <div class="event-grid">
-                    <button class="btn" onclick="registerEvent('SAQ','ACE')">Saque Ace</button>
-                    <button class="btn err" onclick="registerEvent('SAQ','ERRO')">Saque Erro</button>
-
-                    <button class="btn" onclick="registerEvent('REC','PERFEITA')">Recepção Perfeita</button>
-                    <button class="btn err" onclick="registerEvent('REC','ERRO')">Recepção Erro</button>
-
-                    <button class="btn" onclick="registerEvent('ATA','PONTO')">Ataque Ponto</button>
-                    <button class="btn err" onclick="registerEvent('ATA','ERRO')">Ataque Erro</button>
-
-                    <button class="btn" onclick="registerEvent('BLO','PONTO')">Bloqueio Ponto</button>
-                    <button class="btn err" onclick="registerEvent('BLO','ERRO')">Bloqueio Erro</button>
-                </div>
+                <div id="event-buttons-container"></div>
                 <button class="btn btn-danger" style="margin-top:20px;" onclick="endMatch()">Encerrar Partida e Baixar Planilha</button>
             </div>
         </div>
@@ -794,18 +805,126 @@ function initChart(data, baseColor) {
 
 // ----------------- LÓGICA DO TREINADOR E PARTIDAS -----------------
 
+// Config única dos fundamentos do scout — baseada no modelo de planilha do treinador.
+// Cada opção tem: r (valor salvo no banco), l (rótulo do botão), abbr (coluna na tabela/CSV),
+// weight: 'plus' conta a favor, 'minus' conta contra, 'neutral' entra só no total, número = peso (passe).
+const FUNDAMENTOS_SCOUT = [
+    { key: 'SAQUE', label: '🏐 Saque', hasPct: true, pctMode: 'simple', options: [
+        { r: 'PONTO', l: 'Ponto', abbr: 'SP', weight: 'plus' },
+        { r: 'DIFICULTA', l: 'Dificulta', abbr: 'SD', weight: 'plus' },
+        { r: 'ERRO', l: 'Erro', abbr: 'SE', weight: 'minus' },
+        { r: 'FACIL', l: 'Fácil', abbr: 'SF', weight: 'neutral' }
+    ]},
+    { key: 'BLOQUEIO', label: '🧱 Bloqueio', hasPct: false, options: [
+        { r: 'PONTO', l: 'Ponto', abbr: 'BP', weight: 'plus' },
+        { r: 'CONTATO', l: 'Contato', abbr: 'BC', weight: 'neutral' }
+    ]},
+    { key: 'PASSE', label: '👐 Passe', hasPct: true, pctMode: 'weighted3', options: [
+        { r: 'PERFEITO', l: 'Perfeito', abbr: 'PA', weight: 3 },
+        { r: 'BOM', l: 'Bom', abbr: 'PC', weight: 2 },
+        { r: 'DIFICULTADO', l: 'Dificultado', abbr: 'PD', weight: 1 },
+        { r: 'ERRO', l: 'Erro', abbr: 'PP', weight: 0 }
+    ]},
+    { key: 'CONTRA', label: '🔁 Contra-ataque', hasPct: true, pctMode: 'simple', options: [
+        { r: 'PONTO', l: 'Ponto', abbr: 'CP', weight: 'plus' },
+        { r: 'CONTINUIDADE', l: 'Continuidade', abbr: 'C', weight: 'neutral' },
+        { r: 'ERRO', l: 'Erro', abbr: 'CN', weight: 'minus' },
+        { r: 'BLOQUEADO', l: 'Bloqueado', abbr: 'CB', weight: 'minus' }
+    ]},
+    { key: 'ATAQUE', label: '⚡ Ataque', hasPct: true, pctMode: 'simple', options: [
+        { r: 'PONTO', l: 'Ponto', abbr: 'AC', weight: 'plus' },
+        { r: 'DEFENDIDO', l: 'Defendido', abbr: 'AD', weight: 'neutral' },
+        { r: 'FRACO', l: 'Fraco', abbr: 'AF', weight: 'neutral' },
+        { r: 'BLOQUEADO', l: 'Bloqueado', abbr: 'AB', weight: 'minus' },
+        { r: 'ERRO', l: 'Erro', abbr: 'AE', weight: 'minus' }
+    ]},
+    { key: 'DEFESA', label: '🛡 Defesa', hasPct: false, options: [
+        { r: 'POSITIVA', l: 'Positiva', abbr: 'DP', weight: 'plus' },
+        { r: 'NEGATIVA', l: 'Negativa', abbr: 'DN', weight: 'minus' },
+        { r: 'PONTO', l: 'Ponto', abbr: 'DPT', weight: 'plus' }
+    ]}
+];
+
+// Colunas da tabela final / CSV, na mesma ordem e agrupamento do modelo em Python (SAQUE, BLOQ, PASSE, CONTRA, ATAQUE, C+A, DEFESA, APV)
+const SCOUT_TABLE_COLUMNS = [
+    { group: 'SAQUE', header: 'SP', key: 'SP' }, { group: 'SAQUE', header: 'SD', key: 'SD' },
+    { group: 'SAQUE', header: 'SE', key: 'SE' }, { group: 'SAQUE', header: 'SF', key: 'SF' },
+    { group: 'SAQUE', header: 'Tot', key: 'SAQUE_TOTAL' }, { group: 'SAQUE', header: '%', key: 'SAQUE_PCT', isPct: true },
+    { group: 'BLOQ', header: 'BP', key: 'BP' }, { group: 'BLOQ', header: 'BC', key: 'BC' },
+    { group: 'PASSE', header: 'PA', key: 'PA' }, { group: 'PASSE', header: 'PC', key: 'PC' },
+    { group: 'PASSE', header: 'PD', key: 'PD' }, { group: 'PASSE', header: 'PP', key: 'PP' },
+    { group: 'PASSE', header: 'Tot', key: 'PASSE_TOTAL' }, { group: 'PASSE', header: '%', key: 'PASSE_PCT', isPct: true },
+    { group: 'CONTRA', header: 'CP', key: 'CP' }, { group: 'CONTRA', header: 'C', key: 'C' },
+    { group: 'CONTRA', header: 'CN', key: 'CN' }, { group: 'CONTRA', header: 'CB', key: 'CB' },
+    { group: 'CONTRA', header: 'Tot', key: 'CONTRA_TOTAL' }, { group: 'CONTRA', header: '%', key: 'CONTRA_PCT', isPct: true },
+    { group: 'ATAQUE', header: 'AC', key: 'AC' }, { group: 'ATAQUE', header: 'AD', key: 'AD' },
+    { group: 'ATAQUE', header: 'AF', key: 'AF' }, { group: 'ATAQUE', header: 'AB', key: 'AB' },
+    { group: 'ATAQUE', header: 'AE', key: 'AE' }, { group: 'ATAQUE', header: 'Tot', key: 'ATAQUE_TOTAL' },
+    { group: 'ATAQUE', header: '%', key: 'ATAQUE_PCT', isPct: true },
+    { group: 'C+A', header: 'Tot', key: 'CA_TOTAL' }, { group: 'C+A', header: '%', key: 'CA_PCT', isPct: true },
+    { group: 'DEFESA', header: 'DP', key: 'DP' }, { group: 'DEFESA', header: 'DN', key: 'DN' }, { group: 'DEFESA', header: 'Pto', key: 'DPT' },
+    { group: 'APV', header: 'APV', key: 'APV', isPct: true }
+];
+
+// Calcula todos os fundamentos + percentuais + APV a partir de uma lista de eventos ({fundamento, resultado}).
+// Reproduz exatamente as fórmulas da planilha-modelo em Python.
+function calcFundamentos(evs) {
+    const out = {};
+    FUNDAMENTOS_SCOUT.forEach(f => {
+        let tot = 0, plusSum = 0, minusSum = 0, weightedSum = 0;
+        f.options.forEach(opt => {
+            const n = evs.filter(e => e.fundamento === f.key && e.resultado === opt.r).length;
+            out[opt.abbr] = n;
+            tot += n;
+            if (opt.weight === 'plus') plusSum += n;
+            if (opt.weight === 'minus') minusSum += n;
+            if (typeof opt.weight === 'number') weightedSum += n * opt.weight;
+        });
+        out[f.key + '_TOTAL'] = tot;
+        if (f.hasPct) {
+            let pct = 0;
+            if (tot > 0) pct = f.pctMode === 'weighted3' ? (weightedSum / (tot * 3)) * 100 : ((plusSum - minusSum) / tot) * 100;
+            out[f.key + '_PCT'] = Math.round(pct * 10) / 10;
+        }
+    });
+    // C+A: Contra-ataque + Ataque combinados
+    out.CA_TOTAL = out.ATAQUE_TOTAL + out.CONTRA_TOTAL;
+    const caPlus = out.AC + out.CP, caMinus = out.AB + out.AE + out.CN + out.CB;
+    out.CA_PCT = out.CA_TOTAL > 0 ? Math.round(((caPlus - caMinus) / out.CA_TOTAL) * 100 * 10) / 10 : 0;
+    // APV = média de Saque%, Passe%, Contra%, Ataque%, C+A%
+    const metrics = [out.SAQUE_PCT, out.PASSE_PCT, out.CONTRA_PCT, out.ATAQUE_PCT, out.CA_PCT];
+    out.APV = Math.round((metrics.reduce((a, b) => a + b, 0) / metrics.length) * 10) / 10;
+    return out;
+}
+
+// Monta os grupos de botões do scout ao vivo, uma vez, a partir de FUNDAMENTOS_SCOUT
+function renderEventButtons() {
+    const container = document.getElementById('event-buttons-container');
+    if (!container) return;
+    container.innerHTML = FUNDAMENTOS_SCOUT.map(f => `
+        <div class="fundamento-group">
+            <p class="fundamento-title">${f.label}</p>
+            <div class="fundamento-buttons">
+                ${f.options.map(opt => {
+                    const cls = opt.weight === 'plus' ? 'out-point' : opt.weight === 'minus' ? 'out-negative' : 'out-neutral';
+                    return `<button class="out-btn ${cls}" onclick="registerEvent('${f.key}','${opt.r}')">${opt.l}</button>`;
+                }).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
 async function loadBarChart(nick) {
     const stats = await getPlayerStats(nick);
     const ctx = document.getElementById('barChart').getContext('2d');
     if(barChartObj) barChartObj.destroy();
-    
-    const calc = (fund) => stats[fund] && stats[fund].total > 0 ? Math.round((stats[fund].acerto / stats[fund].total) * 100) : 0;
-    const dataArr = [calc('SAQ'), calc('REC'), calc('ATA'), calc('BLO')];
-    
+
+    const dataArr = [stats.SAQUE_PCT, stats.PASSE_PCT, stats.CONTRA_PCT, stats.ATAQUE_PCT, stats.CA_PCT, stats.APV];
+
     barChartObj = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Saque', 'Passe/Rec', 'Ataque', 'Bloqueio'],
+            labels: ['Saque', 'Passe', 'Contra', 'Ataque', 'C+A', 'APV'],
             datasets: [{
                 data: dataArr,
                 backgroundColor: 'rgba(34, 197, 94, 0.6)',
@@ -817,8 +936,8 @@ async function loadBarChart(nick) {
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: { 
-                y: { min: 0, max: 100, ticks: { color: '#9CA3AF', stepSize: 25 } }, 
-                x: { ticks: { color: '#E5E7EB', font: { size: 10, weight: 'bold' } } } 
+                y: { min: -20, max: 100, ticks: { color: '#9CA3AF', stepSize: 20 } }, 
+                x: { ticks: { color: '#E5E7EB', font: { size: 9, weight: 'bold' } } } 
             },
             plugins: { legend: { display: false } }
         }
@@ -873,10 +992,11 @@ async function startMatch() {
     const select = document.getElementById('player-select');
     select.innerHTML = '';
     selectedPlayers.forEach(nick => {
-        liveMatchStats[nick] = { acertos: 0, erros: 0 }; 
+        liveMatchStats[nick] = { SAQUE: 0, BLOQUEIO: 0, PASSE: 0, CONTRA: 0, ATAQUE: 0, DEFESA: 0 };
         select.innerHTML += `<option value="${nick}">${nick}</option>`;
     });
 
+    renderEventButtons();
     document.getElementById('pre-match-area').classList.add('hidden');
     document.getElementById('match-area').classList.remove('hidden');
     updateLiveFeedback();
@@ -885,16 +1005,17 @@ async function startMatch() {
 function updateLiveFeedback() {
     const atleta = document.getElementById('player-select').value;
     if(!atleta) return;
-    const stats = liveMatchStats[atleta];
-    document.getElementById('live-feedback').innerHTML = `Atleta: ${atleta} <br> <span style="color:#22C55E">Acertos: ${stats.acertos}</span> | <span style="color:#ef4444">Erros: ${stats.erros}</span>`;
+    const s = liveMatchStats[atleta];
+    document.getElementById('live-feedback').innerHTML = `Atleta: ${atleta} <br>
+        Saque: ${s.SAQUE} • Bloqueio: ${s.BLOQUEIO} • Passe: ${s.PASSE}<br>
+        Contra: ${s.CONTRA} • Ataque: ${s.ATAQUE} • Defesa: ${s.DEFESA}`;
 }
 
 async function registerEvent(fundamento, resultado) {
     if(!currentMatchId) return alert("Inicie uma partida");
     const atleta = document.getElementById('player-select').value;
-    
-    if(resultado === 'ERRO') liveMatchStats[atleta].erros++;
-    else liveMatchStats[atleta].acertos++;
+
+    liveMatchStats[atleta][fundamento]++;
     updateLiveFeedback();
 
     const { error } = await _supabase.from('eventos').insert([{ partida_id: currentMatchId, atleta: atleta, fundamento: fundamento, resultado: resultado }]);
@@ -918,6 +1039,29 @@ function parseAtletasList(atletasField) {
 }
 
 // --- ABRIR MODAL COM TABELA DE ESTATÍSTICAS ---
+let lastMatchTableData = null; // guarda os dados já calculados para o CSV não precisar reler o DOM
+
+// Monta o cabeçalho (duas linhas: grupo + subcoluna) a partir de SCOUT_TABLE_COLUMNS
+function buildScoutTableHead() {
+    let groupRow = '<th rowspan="2">ATLETA</th>';
+    let subRow = '';
+    let i = 0;
+    while (i < SCOUT_TABLE_COLUMNS.length) {
+        const group = SCOUT_TABLE_COLUMNS[i].group;
+        let span = 0;
+        while (i + span < SCOUT_TABLE_COLUMNS.length && SCOUT_TABLE_COLUMNS[i + span].group === group) span++;
+        groupRow += `<th colspan="${span}">${group}</th>`;
+        for (let j = 0; j < span; j++) subRow += `<th>${SCOUT_TABLE_COLUMNS[i + j].header}</th>`;
+        i += span;
+    }
+    return `<tr>${groupRow}</tr><tr>${subRow}</tr>`;
+}
+
+function buildScoutRow(label, stats, isTeam) {
+    const cells = SCOUT_TABLE_COLUMNS.map(c => `<td>${stats[c.key]}${c.isPct ? '%' : ''}</td>`).join('');
+    return `<tr class="${isTeam ? 'team-row' : ''}"><td>${label}</td>${cells}</tr>`;
+}
+
 async function openMatchDetails(matchId, matchName, coach, date) {
     const [{ data: eventos }, { data: partida }] = await Promise.all([
         _supabase.from('eventos').select('*').eq('partida_id', matchId),
@@ -927,50 +1071,27 @@ async function openMatchDetails(matchId, matchName, coach, date) {
     document.getElementById('modal-match-title').innerText = matchName.toUpperCase();
     document.getElementById('modal-match-info').innerText = `${date} | Treinador: ${coach}`;
     
+    const thead = document.getElementById('modal-table-head');
     const tbody = document.getElementById('modal-table-body');
 
     if (!partida || !eventos) {
-        tbody.innerHTML = '<tr><td colspan="6">Dados não encontrados.</td></tr>';
+        tbody.innerHTML = '<tr><td>Dados não encontrados.</td></tr>';
         return;
     }
 
-    const rowsHtml = [];
+    thead.innerHTML = buildScoutTableHead();
+
     const listaAtletas = parseAtletasList(partida.atletas);
+    const perAthlete = listaAtletas.filter(n => n).map(nick => ({
+        nick, stats: calcFundamentos(eventos.filter(e => e.atleta === nick))
+    }));
+    const teamStats = calcFundamentos(eventos); // total da equipe = todos os eventos da partida, recalculado (igual ao modelo)
 
-    // Loop individual garantido para cada atleta real
-    listaAtletas.forEach(nick => {
-        if (!nick) return;
+    tbody.innerHTML = perAthlete.map(a => buildScoutRow(a.nick.toUpperCase(), a.stats, false)).join('')
+        + buildScoutRow('EQUIPE', teamStats, true);
 
-        const evs = eventos.filter(e => e.atleta === nick);
-        
-        const sA = evs.filter(e => e.fundamento === 'SAQ' && (e.resultado === 'ACE' || e.resultado === 'PONTO')).length;
-        const sE = evs.filter(e => e.fundamento === 'SAQ' && e.resultado === 'ERRO').length;
-        const rP = evs.filter(e => e.fundamento === 'REC' && (e.resultado === 'PERFEITA' || e.resultado === 'PONTO')).length;
-        const rE = evs.filter(e => e.fundamento === 'REC' && e.resultado === 'ERRO').length;
-        const aP = evs.filter(e => e.fundamento === 'ATA' && e.resultado === 'PONTO').length;
-        const aE = evs.filter(e => e.fundamento === 'ATA' && e.resultado === 'ERRO').length;
-        const bP = evs.filter(e => e.fundamento === 'BLO' && e.resultado === 'PONTO').length;
-        const bE = evs.filter(e => e.fundamento === 'BLO' && e.resultado === 'ERRO').length;
-
-        const total = sA + sE + rP + rE + aP + aE + bP + bE;
-        const ef = total > 0 ? (((sA + rP + aP + bP) / total) * 100).toFixed(0) : 0;
-
-        rowsHtml.push(`
-            <tr>
-                <td>${nick.toUpperCase()}</td>
-                <td><span class="val-ponto">${sA}</span><span class="val-divider">|</span><span class="val-erro">${sE}</span></td>
-                <td><span class="val-ponto">${rP}</span><span class="val-divider">|</span><span class="val-erro">${rE}</span></td>
-                <td><span class="val-ponto">${aP}</span><span class="val-divider">|</span><span class="val-erro">${aE}</span></td>
-                <td><span class="val-ponto">${bP}</span><span class="val-divider">|</span><span class="val-erro">${bE}</span></td>
-                <td><span class="ef-badge">${ef}%</span></td>
-            </tr>
-        `);
-    });
-
-    tbody.innerHTML = rowsHtml.join('');
-
-    // Passa apenas o nome da partida para o botão baixar ler a tabela limpa
-    document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV(matchName);
+    lastMatchTableData = { matchName, perAthlete, teamStats };
+    document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV();
     document.getElementById('modal-stats').classList.remove('hidden');
 }
 
@@ -978,47 +1099,18 @@ function closeMatchDetails() {
     document.getElementById('modal-stats').classList.add('hidden');
 }
 
-// --- FUNÇÃO DE DOWNLOAD LIMPA E CORRIGIDA ---
-async function downloadMatchCSV(matchName) {
-    // 1. Captura os dados da tabela que está sendo exibida no modal
-    const rows = document.querySelectorAll("#modal-table-body tr");
-    
-    if (rows.length === 0) {
-        alert("Nenhum dado encontrado para exportar.");
-        return;
-    }
+// --- EXPORTAÇÃO CSV, com as mesmas colunas e fórmulas da planilha-modelo ---
+function downloadMatchCSV() {
+    if (!lastMatchTableData) { alert("Abra os detalhes de uma partida primeiro."); return; }
+    const { matchName, perAthlete, teamStats } = lastMatchTableData;
 
-    // 2. Define o cabeçalho exatamente como no seu modelo
-    let csvContent = "ATLETA;SAQUE_ACE;SAQUE_ERRO;REC_PERFEITA;REC_ERRO;ATA_PONTO;ATA_ERRO;BLO_PONTO;BLO_ERRO;EFICIENCIA\n";
+    const header = ['ATLETA', ...SCOUT_TABLE_COLUMNS.map(c => `${c.group}_${c.header}`)].join(';');
+    const rowFor = (label, stats) => [label, ...SCOUT_TABLE_COLUMNS.map(c => stats[c.key])].join(';');
 
-    // 3. Percorre as linhas da tabela e extrai os números
-    rows.forEach(row => {
-        const cols = row.querySelectorAll("td");
-        
-        // Extração limpa dos valores ignorando os separadores visual "|"
-        const nome = cols[0].innerText.toLowerCase();
-        
-        // Função auxiliar para pegar os números de cada célula (Ponto|Erro)
-        const getVals = (cell) => {
-            const parts = cell.innerText.split('|');
-            return {
-                ponto: parts[0] ? parts[0].trim() : "0",
-                erro: parts[1] ? parts[1].trim() : "0"
-            };
-        };
+    let csvContent = header + '\n';
+    perAthlete.forEach(a => { csvContent += rowFor(a.nick, a.stats) + '\n'; });
+    csvContent += rowFor('EQUIPE', teamStats) + '\n';
 
-        const saq = getVals(cols[1]);
-        const rec = getVals(cols[2]);
-        const ata = getVals(cols[3]);
-        const blo = getVals(cols[4]);
-        const ef  = cols[5].innerText.trim();
-
-        // Monta a linha separada por ponto e vírgula
-        const line = `${nome};${saq.ponto};${saq.erro};${rec.ponto};${rec.erro};${ata.ponto};${ata.erro};${blo.ponto};${blo.erro};${ef}`;
-        csvContent += line + "\n";
-    });
-
-    // 4. Cria o arquivo para download com suporte a acentos (UTF-8 com BOM)
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1029,6 +1121,7 @@ async function downloadMatchCSV(matchName) {
     
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
 async function loadMatchHistory(u) {
@@ -1129,19 +1222,8 @@ async function endMatch() {
 }
 
 async function getPlayerStats(nick) {
-    let stats = { SAQ: { total:0, acerto:0 }, REC: { total:0, acerto:0 }, ATA: { total:0, acerto:0 }, BLO: { total:0, acerto:0 } };
     const { data } = await _supabase.from('eventos').select('fundamento,resultado').eq('atleta', nick);
-    if(data) {
-        data.forEach(e => {
-            if(stats[e.fundamento]) {
-                stats[e.fundamento].total++;
-                if((e.fundamento === 'SAQ' && e.resultado !== 'ERRO') || (e.fundamento === 'REC' && e.resultado !== 'ERRO') || (e.resultado === 'PONTO')) {
-                    stats[e.fundamento].acerto++;
-                }
-            }
-        });
-    }
-    return stats;
+    return calcFundamentos(data || []);
 }
 
 // ----------------- FIM DA LÓGICA DO TREINADOR -----------------
@@ -1268,22 +1350,11 @@ function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
         <h2 id="modal-match-title" class="modal-title">DETALHES DA PARTIDA</h2>
         <p id="modal-match-info" class="modal-info"></p>
         
-        <div class="legend-row">
-            <span class="ok">● ACERTOS</span>
-            <span class="bad">● ERROS</span>
-        </div>
+        <p class="modal-info" style="margin-bottom:15px;">Arraste a tabela para o lado para ver todas as colunas →</p>
 
         <div class="table-scroll">
             <table class="stats-table">
-                <thead>
-                    <tr>
-                        <th>ATLETA</th>
-                        <th>SAQUE </th>
-                        <th>RECEPSÃO </th>
-                        <th>ATAQUE </th>
-                        <th>BLOCK </th>
-                        <th>EFICIÊNCIA</th>
-                    </tr>
+                <thead id="modal-table-head">
                 </thead>
                 <tbody id="modal-table-body">
                     </tbody>
