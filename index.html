@@ -335,8 +335,32 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .table-scroll { overflow-x: auto; }
 
 .stats-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 12px; }
-.stats-table th { background: transparent; color: var(--text-dim); font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding: 6px 8px; border-bottom: 1px solid var(--bg-card); white-space: nowrap; }
+.stats-table th { background: var(--bg-panel); color: var(--text-dim); font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding: 6px 8px; border-bottom: 1px solid var(--bg-card); white-space: nowrap; }
 .stats-table td { background: var(--bg-card); padding: 9px 8px; color: var(--white); text-align: center; border: none; white-space: nowrap; }
+.stats-table tbody tr:nth-child(odd) td { background: var(--bg-elevated); }
+.stats-table thead th:first-child, .stats-table tbody td:first-child {
+    position: sticky; left: 0; z-index: 3; text-align: left; padding-left: 14px;
+    font-family: var(--font-display); color: var(--primary); box-shadow: 3px 0 8px rgba(0,0,0,0.35);
+}
+.stats-table thead th:first-child { background: var(--bg-panel); z-index: 4; }
+.stats-table tbody tr:nth-child(odd) td:first-child { background: var(--bg-elevated); }
+.stats-table tbody tr:not(.team-row) td:first-child { background: var(--bg-card); }
+.table-scroll-hint { display: none; }
+
+/* ---------- Visão em cards do scout (celular) ---------- */
+.scout-cards { display: none; flex-direction: column; gap: 12px; }
+.scout-card { background: var(--bg-panel); border: var(--border-subtle); border-radius: var(--radius-md); padding: 16px; animation: fadeUp .3s var(--ease) backwards; }
+.scout-card-team { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
+.scout-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; }
+.scout-card-head h4 { font-family: var(--font-display); color: var(--white); font-size: 15px; letter-spacing: .5px; overflow-wrap: anywhere; }
+.scout-apv-badge { border: 1px solid; border-radius: var(--radius-sm); padding: 4px 10px; font-size: 9px; text-align: center; text-transform: uppercase; letter-spacing: .5px; flex-shrink: 0; }
+.scout-apv-badge b { font-size: 15px; font-family: var(--font-display); }
+.scout-card-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.scout-mini { background: var(--bg-main); border: 1px solid var(--bg-card); border-radius: var(--radius-sm); padding: 8px 10px; }
+.scout-mini-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.scout-mini-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.scout-mini-val { font-family: var(--font-display); font-size: 14px; font-weight: 700; }
+.scout-mini-sub { font-size: 9px; color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
 .stats-table td:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); text-align: left; font-weight: bold; padding-left: 20px; color: var(--primary); font-family: var(--font-display); }
 .stats-table td:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 
@@ -356,7 +380,44 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
 
-@media (max-width: 400px) {
+/* ---------- Mobile: evita telas de qualquer tamanho ficarem deformadas ---------- */
+input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em campos */
+
+@media (max-width: 640px) {
+    .container { padding: 0 14px; }
+    .main-container { width: 100%; padding: 0 14px; margin: 16px auto; }
+    .hero-title { font-size: clamp(24px, 7vw, 32px); }
+    .auth-card { padding: 26px 18px; }
+
+    .filter-row { flex-wrap: wrap; }
+    .filter-row select { min-width: 0; flex: 1 1 45%; }
+
+    .fundamento-buttons { gap: 6px; }
+    .out-btn { min-width: 0; flex: 1 1 30%; padding: 10px 4px; font-size: 10px; }
+
+    .bottom-nav { padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); }
+    .nav-item { font-size: 9px; gap: 3px; }
+    .nav-icon { font-size: 18px; }
+
+    .modal-content { padding: 18px 14px; border-radius: var(--radius-md); }
+    .modal-title { font-size: 17px; padding-right: 34px; }
+    .btn-row { flex-wrap: wrap; }
+    .btn-row .btn { flex: 1 1 100%; }
+
+    .athlete-info h4 { font-size: 14px; }
+    .search-ovr { min-width: 46px; padding: 6px 8px; }
+    .search-ovr span { font-size: 16px; }
+
+    /* Abaixo de 640px a tabela larga vira cards por atleta — mais legível que rolar 34 colunas no celular */
+    .table-scroll { display: none; }
+    .scout-cards { display: flex; }
+}
+
+@media (min-width: 641px) {
+    .table-scroll-hint { display: block; margin-bottom: 15px; }
+}
+
+@media (max-width: 480px) {
     .card-header { flex-direction: column; }
     .card-left, .card-right { width: 100%; border-right: none; }
     .card-left { border-bottom: var(--border-subtle); flex-direction: row; justify-content: space-between; padding: 15px 20px; }
@@ -364,6 +425,9 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     .overall-val { font-size: 28px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
     .event-grid { grid-template-columns: 1fr 1fr; }
+    .badges-wrapper { flex-wrap: wrap; }
+    .profile-user { flex-wrap: wrap; }
+    .scout-card-groups { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -1041,7 +1105,13 @@ function parseAtletasList(atletasField) {
 // --- ABRIR MODAL COM TABELA DE ESTATÍSTICAS ---
 let lastMatchTableData = null; // guarda os dados já calculados para o CSV não precisar reler o DOM
 
-// Monta o cabeçalho (duas linhas: grupo + subcoluna) a partir de SCOUT_TABLE_COLUMNS
+const GROUP_COLORS = {
+    SAQUE: '#22C55E', BLOQ: '#8B95A3', PASSE: '#4C8DFF',
+    CONTRA: '#A78BFA', ATAQUE: '#F5B942', 'C+A': '#2DD4BF',
+    DEFESA: '#FF8A65', APV: '#22C55E'
+};
+
+// Monta o cabeçalho (duas linhas: grupo colorido + subcoluna) a partir de SCOUT_TABLE_COLUMNS
 function buildScoutTableHead() {
     let groupRow = '<th rowspan="2">ATLETA</th>';
     let subRow = '';
@@ -1050,7 +1120,8 @@ function buildScoutTableHead() {
         const group = SCOUT_TABLE_COLUMNS[i].group;
         let span = 0;
         while (i + span < SCOUT_TABLE_COLUMNS.length && SCOUT_TABLE_COLUMNS[i + span].group === group) span++;
-        groupRow += `<th colspan="${span}">${group}</th>`;
+        const color = GROUP_COLORS[group] || 'var(--primary)';
+        groupRow += `<th colspan="${span}" style="color:${color}; border-bottom: 2px solid ${color};">${group}</th>`;
         for (let j = 0; j < span; j++) subRow += `<th>${SCOUT_TABLE_COLUMNS[i + j].header}</th>`;
         i += span;
     }
@@ -1058,8 +1129,45 @@ function buildScoutTableHead() {
 }
 
 function buildScoutRow(label, stats, isTeam) {
-    const cells = SCOUT_TABLE_COLUMNS.map(c => `<td>${stats[c.key]}${c.isPct ? '%' : ''}</td>`).join('');
+    const cells = SCOUT_TABLE_COLUMNS.map(c => {
+        const val = stats[c.key];
+        const style = c.isPct ? ` style="color:${getDynamicColor(val)}; font-weight:700;"` : '';
+        return `<td${style}>${val}${c.isPct ? '%' : ''}</td>`;
+    }).join('');
     return `<tr class="${isTeam ? 'team-row' : ''}"><td>${label}</td>${cells}</tr>`;
+}
+
+// Visão em cards por atleta — usada no celular no lugar da tabela larga, que não cabe numa tela pequena
+function buildScoutCard(label, stats, isTeam) {
+    const apvColor = getDynamicColor(stats.APV);
+    const groups = [
+        { g: 'SAQUE', label: 'Saque', pct: stats.SAQUE_PCT, sub: `SP ${stats.SP} · SD ${stats.SD} · SE ${stats.SE} · SF ${stats.SF}` },
+        { g: 'BLOQ', label: 'Bloqueio', sub: `Ponto ${stats.BP} · Contato ${stats.BC}` },
+        { g: 'PASSE', label: 'Passe', pct: stats.PASSE_PCT, sub: `PA ${stats.PA} · PC ${stats.PC} · PD ${stats.PD} · PP ${stats.PP}` },
+        { g: 'CONTRA', label: 'Contra-ataque', pct: stats.CONTRA_PCT, sub: `Ponto ${stats.CP} · Cont. ${stats.C} · Erro ${stats.CN} · Bloq. ${stats.CB}` },
+        { g: 'ATAQUE', label: 'Ataque', pct: stats.ATAQUE_PCT, sub: `Ponto ${stats.AC} · Def. ${stats.AD} · Fraco ${stats.AF} · Bloq. ${stats.AB} · Erro ${stats.AE}` },
+        { g: 'C+A', label: 'Contra + Ataque', pct: stats.CA_PCT, sub: `Total ${stats.CA_TOTAL}` },
+        { g: 'DEFESA', label: 'Defesa', sub: `Positiva ${stats.DP} · Negativa ${stats.DN} · Ponto ${stats.DPT}` }
+    ];
+    return `
+        <div class="scout-card ${isTeam ? 'scout-card-team' : ''}">
+            <div class="scout-card-head">
+                <h4>${label}</h4>
+                <div class="scout-apv-badge" style="border-color:${apvColor}; color:${apvColor};">APV<br><b>${stats.APV}%</b></div>
+            </div>
+            <div class="scout-card-groups">
+                ${groups.map(item => `
+                    <div class="scout-mini">
+                        <div class="scout-mini-top">
+                            <span class="scout-mini-label" style="color:${GROUP_COLORS[item.g]};">${item.label}</span>
+                            ${item.pct !== undefined ? `<span class="scout-mini-val" style="color:${getDynamicColor(item.pct)};">${item.pct}%</span>` : ''}
+                        </div>
+                        <div class="scout-mini-sub">${item.sub}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
 }
 
 async function openMatchDetails(matchId, matchName, coach, date) {
@@ -1073,9 +1181,11 @@ async function openMatchDetails(matchId, matchName, coach, date) {
     
     const thead = document.getElementById('modal-table-head');
     const tbody = document.getElementById('modal-table-body');
+    const cardsView = document.getElementById('modal-cards-view');
 
     if (!partida || !eventos) {
         tbody.innerHTML = '<tr><td>Dados não encontrados.</td></tr>';
+        cardsView.innerHTML = '<p class="empty-state">Dados não encontrados.</p>';
         return;
     }
 
@@ -1089,6 +1199,9 @@ async function openMatchDetails(matchId, matchName, coach, date) {
 
     tbody.innerHTML = perAthlete.map(a => buildScoutRow(a.nick.toUpperCase(), a.stats, false)).join('')
         + buildScoutRow('EQUIPE', teamStats, true);
+
+    cardsView.innerHTML = buildScoutCard('EQUIPE (TOTAL)', teamStats, true)
+        + perAthlete.map(a => buildScoutCard(a.nick.toUpperCase(), a.stats, false)).join('');
 
     lastMatchTableData = { matchName, perAthlete, teamStats };
     document.getElementById('btn-download-csv').onclick = () => downloadMatchCSV();
@@ -1350,7 +1463,7 @@ function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
         <h2 id="modal-match-title" class="modal-title">DETALHES DA PARTIDA</h2>
         <p id="modal-match-info" class="modal-info"></p>
         
-        <p class="modal-info" style="margin-bottom:15px;">Arraste a tabela para o lado para ver todas as colunas →</p>
+        <p class="modal-info table-scroll-hint">Arraste a tabela para o lado para ver todas as colunas →</p>
 
         <div class="table-scroll">
             <table class="stats-table">
@@ -1360,6 +1473,8 @@ function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
                     </tbody>
             </table>
         </div>
+
+        <div id="modal-cards-view" class="scout-cards"></div>
         
         <div class="btn-row" style="margin-top: 25px;">
             <button class="btn btn-solid" id="btn-download-csv">BAIXAR PLANILHA (CSV)</button>
