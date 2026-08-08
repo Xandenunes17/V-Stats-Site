@@ -1,0 +1,25 @@
+{
+    "name": "V-Stats",
+    "short_name": "V-Stats",
+    "description": "Plataforma de estatísticas e scout de voleibol",
+    "start_url": ".",
+    "scope": ".",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#0B0D11",
+    "theme_color": "#22C55E",
+    "icons": [
+        {
+            "src": "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png",
+            "sizes": "any",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png",
+            "sizes": "any",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
