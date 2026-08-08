@@ -233,6 +233,24 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .star-btn:hover { transform: scale(1.15); }
 .rating-count { display: block; font-size: 8px; color: var(--text-dim); margin-top: 3px; }
 
+/* ---------- Página de time ---------- */
+.team-banner {
+    height: 150px; border-radius: var(--radius-lg); background-size: cover; background-position: center;
+    background-color: var(--bg-panel); border: var(--border-subtle); position: relative; overflow: hidden;
+    display: flex; align-items: flex-end;
+}
+.team-banner::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 60%, transparent 100%);
+}
+.team-banner-empty { background-image: radial-gradient(circle at 30% 20%, rgba(34,197,94,0.18), transparent 55%), var(--bg-panel) !important; }
+.team-banner-overlay { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; padding: 16px; width: 100%; }
+.team-page-logo { width: 56px; height: 56px; object-fit: contain; background: rgba(0,0,0,0.35); border-radius: var(--radius-sm); padding: 6px; flex-shrink: 0; }
+.team-page-name { font-family: var(--font-display); color: var(--white); font-size: 20px; text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,0.6); overflow-wrap: anywhere; }
+.team-page-city { font-size: 11px; color: var(--text-light); opacity: .85; margin-top: 2px; }
+.team-charts-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 640px) { .team-charts-grid { grid-template-columns: 1fr 1fr; } }
+
 /* ---------- Toasts (substituem os alert() do navegador) ---------- */
 .toast-container {
     position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
@@ -559,12 +577,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                     <option value="Central">Central</option>
                     <option value="Líbero">Líbero</option>
                 </select>
-                <select id="rank-team" onchange="renderRanking()">
-                    <option value="">Time: Todos</option>
-                    <option value="Livre">Livre</option>
-                    <option value="União Vôlei">União Vôlei</option>
-                    <option value="Vôlei Mar">Vôlei Mar</option>
-                </select>
+                <select id="rank-team" onchange="renderRanking()"></select>
             </div>
             <div id="ranking-list"></div>
         </div>
@@ -581,18 +594,8 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                     <option value="Central">Central</option>
                     <option value="Líbero">Líbero</option>
                 </select>
-                <select id="search-city" onchange="renderSearch()">
-                    <option value="">Cidade (Todas)</option>
-                    <option value="Amargosa">Amargosa</option>
-                    <option value="Salvador">Salvador</option>
-                    <option value="Brasil">Outra</option>
-                </select>
-                <select id="search-team" onchange="renderSearch()">
-                    <option value="">Time (Todos)</option>
-                    <option value="Livre">Livre</option>
-                    <option value="União Vôlei">União Vôlei</option>
-                    <option value="Vôlei Mar">Vôlei Mar</option>
-                </select>
+                <select id="search-city" onchange="renderSearch()"></select>
+                <select id="search-team" onchange="renderSearch()"></select>
             </div>
             <div id="athlete-list"></div>
         </div>
@@ -640,19 +643,17 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                                 </div>
                                 <div>
                                     <label class="field-label">Time</label>
-                                    <select id="update-team">
-                                        <option value="Livre">Livre</option>
-                                        <option value="União Vôlei">União Vôlei</option>
-                                        <option value="Vôlei Mar">Vôlei Mar</option>
-                                    </select>
+                                    <div style="display:flex; gap:6px;">
+                                        <select id="update-team" style="flex:1;"></select>
+                                        <button type="button" class="icon-btn" onclick="addNewTeam()" title="Cadastrar novo time">+</button>
+                                    </div>
                                 </div>
                             </div>
                             <label class="field-label">Cidade</label>
-                            <select id="update-city">
-                                <option value="Brasil">Brasil</option>
-                                <option value="Amargosa">Amargosa</option>
-                                <option value="Salvador">Salvador</option>
-                            </select>
+                            <div style="display:flex; gap:6px;">
+                                <select id="update-city" style="flex:1;"></select>
+                                <button type="button" class="icon-btn" onclick="addNewCity()" title="Cadastrar nova cidade">+</button>
+                            </div>
                             <button id="btn-save-profile" class="btn btn-solid btn-sm" style="margin-top:10px; width:100%;" onclick="saveProfileUpdates()">Salvar Alterações</button>
                         </div>
 
@@ -686,8 +687,31 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
 
         <div id="page-team" class="app-page hidden">
             <button class="btn btn-ghost btn-sm" onclick="showPage('search')" style="margin-bottom:15px;">← Voltar</button>
-            <h2 class="page-header" id="team-page-title">🏐 Time</h2>
-            <div id="team-summary" class="panel" style="margin-bottom:16px;"></div>
+
+            <div id="team-banner" class="team-banner">
+                <div class="team-banner-overlay">
+                    <img id="team-page-logo" class="team-page-logo" loading="lazy" decoding="async" onerror="this.style.display='none'">
+                    <div>
+                        <h2 id="team-page-title" class="team-page-name">Time</h2>
+                        <p id="team-page-city" class="team-page-city"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="team-summary" class="panel" style="margin: 16px 0;"></div>
+
+            <div class="team-charts-grid">
+                <div class="panel">
+                    <h3 class="section-title">📊 Perfil Médio</h3>
+                    <div class="chart-box"><canvas id="teamRadarChart"></canvas></div>
+                </div>
+                <div class="panel">
+                    <h3 class="section-title">🧩 Posições no Elenco</h3>
+                    <div class="chart-box"><canvas id="teamPosChart"></canvas></div>
+                </div>
+            </div>
+
+            <h3 class="section-title" style="margin-top:20px;">Elenco</h3>
             <div id="team-roster"></div>
         </div>
 
@@ -710,12 +734,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                         <option value="Central">Central</option>
                         <option value="Líbero">Líbero</option>
                     </select>
-                    <select id="match-filter-team" onchange="filterPlayersForMatch()">
-                        <option value="">Time (Todos)</option>
-                        <option value="Livre">Livre</option>
-                        <option value="União Vôlei">União Vôlei</option>
-                        <option value="Vôlei Mar">Vôlei Mar</option>
-                    </select>
+                    <select id="match-filter-team" onchange="filterPlayersForMatch()"></select>
                 </div>
 
                 <div id="player-checkbox-list" class="checkbox-list"></div>
@@ -760,6 +779,17 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
     </div>
 </div>
 
+<div id="prompt-modal" class="modal-overlay hidden">
+    <div class="modal-content confirm-box">
+        <p id="prompt-modal-title" class="confirm-message" style="margin-bottom:14px;"></p>
+        <div id="prompt-modal-fields"></div>
+        <div class="btn-row" style="margin-top:16px;">
+            <button id="prompt-modal-ok" class="btn btn-solid">Salvar</button>
+            <button id="prompt-modal-cancel" class="btn btn-ghost">Cancelar</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // Registro do Service Worker (permite instalar o V-Stats como app no celular/computador).
 // sw.js e manifest.json precisam estar na mesma pasta que este index.html no servidor.
@@ -774,10 +804,89 @@ const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
 const GITHUB_BASE = "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets";
 
-const BIBLIOTECA_IMAGENS = {
-    times: { "União Vôlei": `${GITHUB_BASE}/Logo-Uniao-Volei.png`, "Vôlei Mar": `${GITHUB_BASE}/Logo-Volei-Mar.png`, "Livre": `${GITHUB_BASE}/Logo-Livre.png` },
-    cidades: { "Amargosa": `${GITHUB_BASE}/Amargosa-Bandeira.png`, "Salvador": `${GITHUB_BASE}/Salvador-Bandeira.png`, "Brasil": `${GITHUB_BASE}/Brasil-Bandeira.png` }
-};
+// Times e cidades agora vêm do Supabase (tabelas "times" e "cidades"), em vez de uma lista fixa no
+// código — assim dá pra cadastrar um time ou cidade novo sem precisar editar o site.
+let TEAMS_CACHE = [];
+let CITIES_CACHE = [];
+
+async function loadTeamsAndCities() {
+    const [{ data: times }, { data: cidades }] = await Promise.all([
+        _supabase.from('times').select('*').order('nome'),
+        _supabase.from('cidades').select('*').order('nome')
+    ]);
+    TEAMS_CACHE = times || [];
+    CITIES_CACHE = cidades || [];
+    populateTeamCitySelects();
+}
+
+function getTeamInfo(nome) { return TEAMS_CACHE.find(t => t.nome === nome) || null; }
+function getCityInfo(nome) { return CITIES_CACHE.find(c => c.nome === nome) || null; }
+
+// Preenche todos os selects de time/cidade da página a partir dos caches, preservando o valor
+// já selecionado (importante pra não perder o filtro do usuário ao recarregar a lista).
+function populateTeamCitySelects() {
+    const teamSelects = [
+        { id: 'update-team', allLabel: null },
+        { id: 'search-team', allLabel: 'Time (Todos)' },
+        { id: 'rank-team', allLabel: 'Time: Todos' },
+        { id: 'match-filter-team', allLabel: 'Time (Todos)' }
+    ];
+    const citySelects = [
+        { id: 'update-city', allLabel: null },
+        { id: 'search-city', allLabel: 'Cidade (Todas)' }
+    ];
+
+    teamSelects.forEach(({ id, allLabel }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const current = el.value;
+        const allOpt = allLabel ? `<option value="">${allLabel}</option>` : '';
+        el.innerHTML = allOpt + TEAMS_CACHE.map(t => `<option value="${t.nome}">${t.nome}</option>`).join('');
+        if (current) el.value = current;
+    });
+
+    citySelects.forEach(({ id, allLabel }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const current = el.value;
+        const allOpt = allLabel ? `<option value="">${allLabel}</option>` : '';
+        el.innerHTML = allOpt + CITIES_CACHE.map(c => `<option value="${c.nome}">${c.nome}</option>`).join('');
+        if (current) el.value = current;
+    });
+}
+
+// Cadastra um novo time/cidade na hora, direto do painel de edição de perfil
+async function addNewTeam() {
+    if (!currentUserData || currentUserData.role !== 'treinador') return toast("Só contas de treinador podem cadastrar novos times.", "error");
+    const result = await promptModal("Novo time", [
+        { key: 'nome', label: 'Nome do time', required: true },
+        { key: 'cidade', label: 'Cidade do time (opcional)' },
+        { key: 'logo_url', label: 'URL do escudo/logo (opcional)' },
+        { key: 'banner_url', label: 'URL de uma foto/banner do time (opcional)' }
+    ]);
+    if (!result) return;
+    const { error } = await _supabase.from('times').insert([{ nome: result.nome, cidade: result.cidade || null, logo_url: result.logo_url || null, banner_url: result.banner_url || null }]);
+    if (error) return toast("Erro ao criar time: " + error.message, "error");
+    await loadTeamsAndCities();
+    const sel = document.getElementById('update-team');
+    if (sel) sel.value = result.nome;
+    toast("Time adicionado!", "success");
+}
+
+async function addNewCity() {
+    if (!currentUserData || currentUserData.role !== 'treinador') return toast("Só contas de treinador podem cadastrar novas cidades.", "error");
+    const result = await promptModal("Nova cidade", [
+        { key: 'nome', label: 'Nome da cidade', required: true },
+        { key: 'bandeira_url', label: 'URL da bandeira/imagem (opcional)' }
+    ]);
+    if (!result) return;
+    const { error } = await _supabase.from('cidades').insert([{ nome: result.nome, bandeira_url: result.bandeira_url || null }]);
+    if (error) return toast("Erro ao criar cidade: " + error.message, "error");
+    await loadTeamsAndCities();
+    const sel = document.getElementById('update-city');
+    if (sel) sel.value = result.nome;
+    toast("Cidade adicionada!", "success");
+}
 
 const STAT_KEYS = ['ATA','LEV','BLO','DEF','PAS','SAQ'];
 
@@ -908,6 +1017,32 @@ function confirmDialog(message, { confirmText = 'Confirmar', cancelText = 'Cance
         const cleanup = (result) => { modal.classList.add('hidden'); btnOk.onclick = null; btnCancel.onclick = null; resolve(result); };
         btnOk.onclick = () => cleanup(true);
         btnCancel.onclick = () => cleanup(false);
+    });
+}
+
+// Modal de formulário pequeno e reutilizável (usado hoje pra cadastrar novo time/cidade)
+function promptModal(title, fields) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('prompt-modal');
+        document.getElementById('prompt-modal-title').textContent = title;
+        const fieldsEl = document.getElementById('prompt-modal-fields');
+        fieldsEl.innerHTML = fields.map(f => `<label class="field-label">${f.label}</label><input type="text" id="pm-${f.key}" placeholder="${f.placeholder || ''}">`).join('');
+        modal.classList.remove('hidden');
+
+        const btnOk = document.getElementById('prompt-modal-ok');
+        const btnCancel = document.getElementById('prompt-modal-cancel');
+        const cleanup = (result) => { modal.classList.add('hidden'); btnOk.onclick = null; btnCancel.onclick = null; resolve(result); };
+
+        btnOk.onclick = () => {
+            const values = {};
+            for (const f of fields) {
+                const val = document.getElementById(`pm-${f.key}`).value.trim();
+                if (f.required && !val) return toast(`Preencha: ${f.label}`, 'error');
+                values[f.key] = val;
+            }
+            cleanup(values);
+        };
+        btnCancel.onclick = () => cleanup(null);
     });
 }
 
@@ -1057,10 +1192,12 @@ function displayCard(u) {
     document.getElementById('card-details').innerText = `${u.city} | ${u.team}`;
     document.getElementById('card-photo').src = u.photo || DEFAULT_AVATAR;
     
-    document.getElementById('display-team-logo').src = BIBLIOTECA_IMAGENS.times[u.team] || '';
-    document.getElementById('display-city-flag').src = BIBLIOTECA_IMAGENS.cidades[u.city] || '';
-    document.getElementById('display-team-logo').style.display = BIBLIOTECA_IMAGENS.times[u.team] ? 'block' : 'none';
-    document.getElementById('display-city-flag').style.display = BIBLIOTECA_IMAGENS.cidades[u.city] ? 'block' : 'none';
+    const teamLogoUrl = getTeamInfo(u.team)?.logo_url;
+    const cityFlagUrl = getCityInfo(u.city)?.bandeira_url;
+    document.getElementById('display-team-logo').src = teamLogoUrl || '';
+    document.getElementById('display-city-flag').src = cityFlagUrl || '';
+    document.getElementById('display-team-logo').style.display = teamLogoUrl ? 'block' : 'none';
+    document.getElementById('display-city-flag').style.display = cityFlagUrl ? 'block' : 'none';
     document.getElementById('btn-edit-trigger').style.display = isOwner ? 'block' : 'none';
 
     // Escudo do time leva pra página do elenco — só se houver um time de fato definido
@@ -1822,6 +1959,9 @@ async function loadOther(nick) {
 }
 
 // Página do time: agrega o elenco inteiro e calcula as médias do time a partir dos mesmos dados já usados no perfil
+let teamRadarChartObj = null;
+let teamPosChartObj = null;
+
 async function loadTeamPage(teamName) {
     document.querySelectorAll('.app-page').forEach(el => { el.classList.add('hidden'); el.classList.remove('page-enter'); });
     const target = document.getElementById('page-team');
@@ -1829,16 +1969,30 @@ async function loadTeamPage(teamName) {
     requestAnimationFrame(() => target.classList.add('page-enter'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
 
-    document.getElementById('team-page-title').innerText = `🏐 ${teamName}`;
+    const teamInfo = getTeamInfo(teamName) || {};
+    document.getElementById('team-page-title').innerText = teamName;
+    document.getElementById('team-page-city').innerText = teamInfo.cidade ? `📍 ${teamInfo.cidade}` : '';
+
+    const logoEl = document.getElementById('team-page-logo');
+    logoEl.src = teamInfo.logo_url || '';
+    logoEl.style.display = teamInfo.logo_url ? 'block' : 'none';
+
+    const bannerEl = document.getElementById('team-banner');
+    if (teamInfo.banner_url) { bannerEl.style.backgroundImage = `url('${teamInfo.banner_url}')`; bannerEl.classList.remove('team-banner-empty'); }
+    else { bannerEl.style.backgroundImage = 'none'; bannerEl.classList.add('team-banner-empty'); }
+
     const summaryEl = document.getElementById('team-summary');
     const rosterEl = document.getElementById('team-roster');
     summaryEl.innerHTML = '';
     renderSkeletons(rosterEl, 4);
+    if (teamRadarChartObj) { teamRadarChartObj.destroy(); teamRadarChartObj = null; }
+    if (teamPosChartObj) { teamPosChartObj.destroy(); teamPosChartObj = null; }
 
     const { data } = await _supabase.from('atletas').select('*').eq('team', teamName);
 
     if (!data || data.length === 0) {
         rosterEl.innerHTML = '<p class="empty-state">Nenhum atleta neste time ainda.</p>';
+        summaryEl.innerHTML = '';
         return;
     }
 
@@ -1860,6 +2014,32 @@ async function loadTeamPage(teamName) {
             ${STAT_KEYS.map(k => `<div class="stat-box"><span class="stat-name" style="color:${getDynamicColor(avgByStat[k])};">${k}</span><span class="stat-num" style="color:${getDynamicColor(avgByStat[k])};">${avgByStat[k]}</span></div>`).join('')}
         </div>
     `;
+
+    // Gráfico 1: perfil médio do time (mesmo estilo do radar do atleta, só que com a média do elenco)
+    teamRadarChartObj = new Chart(document.getElementById('teamRadarChart').getContext('2d'), {
+        type: 'radar',
+        data: { labels: STAT_KEYS, datasets: [{ data: STAT_KEYS.map(k => avgByStat[k]), backgroundColor: 'rgba(34,197,94,0.2)', borderColor: '#22C55E', borderWidth: 2, pointBackgroundColor: '#22C55E', pointBorderColor: '#0F1115', pointRadius: 4 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: 'rgba(255,255,255,0.05)' }, angleLines: { color: 'rgba(255,255,255,0.05)' }, pointLabels: { color: '#E5E7EB', font: { family: 'Orbitron', weight: 'bold', size: 10 } } } },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Gráfico 2: quantos atletas o time tem em cada posição
+    const posCounts = {};
+    computed.forEach(c => { posCounts[c.u.pos] = (posCounts[c.u.pos] || 0) + 1; });
+    const posLabels = Object.keys(posCounts);
+    const posColors = ['#22C55E', '#4C8DFF', '#F5B942', '#A78BFA', '#FF8A65', '#2DD4BF'];
+
+    teamPosChartObj = new Chart(document.getElementById('teamPosChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: posLabels, datasets: [{ data: posLabels.map(p => posCounts[p]), backgroundColor: posColors, borderColor: '#141920', borderWidth: 2 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { color: '#E5E7EB', font: { size: 10 }, boxWidth: 10, padding: 10 } } }
+        }
+    });
 
     rosterEl.innerHTML = computed.sort((a, b) => b.ovr - a.ovr).map((c, i) => {
         const color = getDynamicColor(c.ovr);
@@ -1888,10 +2068,11 @@ function showPage(p) {
     else if(p === 'game') loadPlayersForMatch(); 
 }
 
-function enterApp() { 
+async function enterApp() { 
     document.getElementById('auth-screen').classList.add('hidden'); 
     document.getElementById('main-app').classList.remove('hidden'); 
     document.getElementById('nav-bar').classList.remove('hidden'); 
+    await loadTeamsAndCities();
     showPage('profile'); 
 }
 
