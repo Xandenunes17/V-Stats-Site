@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 
 <style>
 :root {
@@ -224,6 +225,31 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .star-btn:hover, .star-btn.active { color: var(--accent-gold); text-shadow: 0 0 6px rgba(245,185,66,.6); }
 .star-btn:hover { transform: scale(1.15); }
 .rating-count { display: block; font-size: 8px; color: var(--text-dim); margin-top: 3px; }
+
+/* ---------- Toasts (substituem os alert() do navegador) ---------- */
+.toast-container {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 3000; display: flex; flex-direction: column; gap: 8px; width: 92%; max-width: 420px; pointer-events: none;
+}
+.toast {
+    background: var(--bg-panel); border: var(--border-subtle); border-left: 4px solid var(--info);
+    color: var(--text-light); padding: 13px 16px; border-radius: var(--radius-sm); font-size: 13px;
+    box-shadow: var(--shadow-card); opacity: 0; transform: translateY(-12px); transition: opacity .25s var(--ease), transform .25s var(--ease);
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast-success { border-left-color: var(--primary); }
+.toast-error { border-left-color: var(--danger); }
+.toast-info { border-left-color: var(--info); }
+
+/* ---------- Modal de confirmação (substitui confirm() do navegador) ---------- */
+.confirm-box { max-width: 380px; padding: 24px; }
+.confirm-message { font-size: 14px; color: var(--text-light); line-height: 1.5; margin-bottom: 20px; }
+
+/* ---------- Estado "ocupado" de botões durante ações assíncronas ---------- */
+.btn.is-busy { opacity: .7; cursor: wait; pointer-events: none; }
+
+/* ---------- Botão "carregar mais" nas listas ---------- */
+.load-more-btn { margin-top: 4px; grid-column: 1 / -1; }
 
 .filter-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 .filter-row select { margin: 0; flex: 1 1 140px; }
@@ -620,7 +646,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                                 <option value="Amargosa">Amargosa</option>
                                 <option value="Salvador">Salvador</option>
                             </select>
-                            <button class="btn btn-solid btn-sm" style="margin-top:10px; width:100%;" onclick="saveProfileUpdates()">Salvar Alterações</button>
+                            <button id="btn-save-profile" class="btn btn-solid btn-sm" style="margin-top:10px; width:100%;" onclick="saveProfileUpdates()">Salvar Alterações</button>
                         </div>
 
                         <div class="radar-wrap"><canvas id="radarChart"></canvas></div>
@@ -674,7 +700,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
 
                 <div id="player-checkbox-list" class="checkbox-list"></div>
 
-                <button class="btn btn-solid" onclick="startMatch()">Iniciar Partida</button>
+                <button id="btn-start-match" class="btn btn-solid" onclick="startMatch()">Iniciar Partida</button>
             </div>
 
             <div id="match-area" class="hidden panel" style="margin-top:15px;">
@@ -700,6 +726,18 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
     <div class="nav-item" id="nav-ranking" onclick="showPage('ranking')"><span class="nav-icon">🏆</span> RANKINGS</div>
     <div class="nav-item" id="nav-search" onclick="showPage('search')"><span class="nav-icon">🔍</span> BUSCA</div>
     <div class="nav-item" id="nav-game" onclick="showPage('game')"><span class="nav-icon">🎯</span> JOGO</div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal-content confirm-box">
+        <p id="confirm-modal-message" class="confirm-message"></p>
+        <div class="btn-row">
+            <button id="confirm-modal-ok" class="btn btn-solid">Confirmar</button>
+            <button id="confirm-modal-cancel" class="btn btn-ghost">Cancelar</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -814,56 +852,157 @@ function toggleEditFields() {
     editArea.classList.remove('hidden');
 }
 
+// ---------- Toasts e confirmação (substituem alert()/confirm() do navegador) ----------
+function toast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 300);
+    }, 3800);
+}
+
+function confirmDialog(message, { confirmText = 'Confirmar', cancelText = 'Cancelar', danger = false } = {}) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('confirm-modal');
+        document.getElementById('confirm-modal-message').textContent = message;
+        const btnOk = document.getElementById('confirm-modal-ok');
+        const btnCancel = document.getElementById('confirm-modal-cancel');
+        btnOk.textContent = confirmText;
+        btnCancel.textContent = cancelText;
+        btnOk.className = 'btn ' + (danger ? 'btn-danger' : 'btn-solid');
+        modal.classList.remove('hidden');
+        const cleanup = (result) => { modal.classList.add('hidden'); btnOk.onclick = null; btnCancel.onclick = null; resolve(result); };
+        btnOk.onclick = () => cleanup(true);
+        btnCancel.onclick = () => cleanup(false);
+    });
+}
+
+// Alterna um botão para o estado "ocupado" durante uma operação assíncrona (evita cliques duplos e dá feedback visual)
+function setButtonBusy(btn, busy, busyText) {
+    if (!btn) return;
+    if (busy) {
+        btn.dataset.originalText = btn.dataset.originalText || btn.innerHTML;
+        if (busyText) btn.innerHTML = busyText;
+        btn.classList.add('is-busy');
+        btn.disabled = true;
+    } else {
+        if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+        btn.classList.remove('is-busy');
+        btn.disabled = false;
+    }
+}
+
+// Salva o usuário no localStorage sem o campo de senha (mesmo já com hash, não precisa ficar no navegador)
+function persistUser(u) {
+    const { pass, ...safeUser } = u;
+    localStorage.setItem('vstats_user', JSON.stringify(safeUser));
+    return safeUser;
+}
+
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
-    if(!nick || !pass) return alert("Preencha as credenciais.");
+    if(!nick || !pass) return toast("Preencha as credenciais.", "error");
 
     if(isRegisterMode) {
+        const { data: existing } = await _supabase.from('atletas').select('nick').eq('nick', nick).maybeSingle();
+        if(existing) return toast("Esse apelido já está em uso. Escolha outro.", "error");
+
+        const hashed = dcodeIO.bcrypt.hashSync(pass, 10);
         const role = document.getElementById('reg-role').value;
         const { data, error } = await _supabase.from('atletas').insert([{ 
-            nick, pass, email: document.getElementById('reg-email').value, role: role,
+            nick, pass: hashed, email: document.getElementById('reg-email').value, role: role,
             pos: document.getElementById('reg-pos-init').value, 
             city: "Brasil", team: "Livre", photo: "", stats: {ATA:50,LEV:50,BLO:50,DEF:50,PAS:50,SAQ:50}, ratings: {} 
         }]).select();
-        if(error) return alert("Erro no sistema: " + error.message);
+        if(error) return toast("Erro no sistema: " + error.message, "error");
         currentUserData = data[0];
     } else {
         const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
-        if(data && data.pass === pass) currentUserData = data;
-        else return alert("Credenciais inválidas!");
+        if(!data) return toast("Credenciais inválidas!", "error");
+
+        const isHashed = typeof data.pass === 'string' && data.pass.startsWith('$2');
+        if(isHashed) {
+            if(!dcodeIO.bcrypt.compareSync(pass, data.pass)) return toast("Credenciais inválidas!", "error");
+        } else {
+            // Conta antiga, senha ainda em texto puro — confere direto e migra pra hash na hora, sem o usuário perceber
+            if(data.pass !== pass) return toast("Credenciais inválidas!", "error");
+            const hashed = dcodeIO.bcrypt.hashSync(pass, 10);
+            await _supabase.from('atletas').update({ pass: hashed }).eq('nick', nick);
+            data.pass = hashed;
+        }
+        currentUserData = data;
     }
-    localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
+    persistUser(currentUserData);
     enterApp();
+}
+
+// Reduz a foto para no máximo 800px no lado maior e comprime como JPEG antes de subir —
+// fotos direto do celular costumam vir com vários MB, o que deixa a busca/ranking lentos pra carregar depois
+function compressImage(file, maxDim = 800, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = e => { img.src = e.target.result; };
+        reader.onerror = reject;
+        img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+                const scale = maxDim / Math.max(width, height);
+                width = Math.round(width * scale); height = Math.round(height * scale);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Falha ao comprimir imagem")), 'image/jpeg', quality);
+        };
+        img.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 async function saveProfileUpdates() {
     const fileInput = document.getElementById('update-photo');
+    const btn = document.getElementById('btn-save-profile');
     let photoData = currentUserData.photo; 
 
+    setButtonBusy(btn, true, 'Salvando...');
+
     if (fileInput.files && fileInput.files[0]) {
-        const file = fileInput.files[0];
-        const ext = file.name.split('.').pop();
-        const filePath = `${currentUserData.nick}-${Date.now()}.${ext}`;
+        try {
+            const compressed = await compressImage(fileInput.files[0]);
+            const filePath = `${currentUserData.nick}-${Date.now()}.jpg`;
 
-        const { error: uploadError } = await _supabase.storage
-            .from('avatars')
-            .upload(filePath, file, { cacheControl: '3600', upsert: false });
+            const { error: uploadError } = await _supabase.storage
+                .from('avatars')
+                .upload(filePath, compressed, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' });
 
-        if (uploadError) return alert("Erro no upload da imagem: " + uploadError.message);
+            if (uploadError) { setButtonBusy(btn, false); return toast("Erro no upload da imagem: " + uploadError.message, "error"); }
 
-        const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
-        photoData = urlData.publicUrl;
+            const { data: urlData } = _supabase.storage.from('avatars').getPublicUrl(filePath);
+            photoData = urlData.publicUrl;
+        } catch (e) {
+            setButtonBusy(btn, false);
+            return toast("Não foi possível processar a imagem.", "error");
+        }
     }
 
     const update = { team: document.getElementById('update-team').value, city: document.getElementById('update-city').value, pos: document.getElementById('update-pos').value, photo: photoData };
     const { error } = await _supabase.from('atletas').update(update).eq('nick', currentUserData.nick);
-    if(error) alert("Falha na sincronização!");
+    setButtonBusy(btn, false);
+    if(error) toast("Falha na sincronização!", "error");
     else {
         currentUserData = {...currentUserData, ...update};
-        localStorage.setItem('vstats_user', JSON.stringify(currentUserData));
+        persistUser(currentUserData);
         document.getElementById('edit-profile-area').classList.add('hidden');
         displayCard(currentUserData);
+        toast("Perfil atualizado!", "success");
     }
 }
 
@@ -1114,15 +1253,18 @@ async function loadPlayersForMatch() {
 }
 
 async function startMatch() {
-    if(!currentUserData || currentUserData.role !== 'treinador') return alert("Apenas treinadores podem usar isso.");
+    if(!currentUserData || currentUserData.role !== 'treinador') return toast("Apenas treinadores podem usar isso.", "error");
     
     const mName = document.getElementById('match-name').value.trim();
-    if(!mName) return alert("Por favor, digite um nome para a partida.");
+    if(!mName) return toast("Por favor, digite um nome para a partida.", "error");
 
     const checkboxes = document.querySelectorAll('.match-player-cb:checked');
     const selectedPlayers = Array.from(checkboxes).map(cb => cb.value);
     
-    if(selectedPlayers.length === 0) return alert("Selecione pelo menos um atleta!");
+    if(selectedPlayers.length === 0) return toast("Selecione pelo menos um atleta!", "error");
+
+    const btn = document.getElementById('btn-start-match');
+    setButtonBusy(btn, true, 'Iniciando...');
 
     const { data, error } = await _supabase.from('partidas').insert([{ 
         treinador: currentUserData.nick, 
@@ -1130,9 +1272,11 @@ async function startMatch() {
         atletas: selectedPlayers 
     }]).select();
 
+    setButtonBusy(btn, false);
+
     if(error) {
         console.error("Erro ao criar partida:", error);
-        return alert("Erro ao criar partida: " + error.message + (error.hint ? " (" + error.hint + ")" : ""));
+        return toast("Erro ao criar partida: " + error.message + (error.hint ? " (" + error.hint + ")" : ""), "error");
     }
 
     currentMatchId = data[0].id;
@@ -1175,21 +1319,21 @@ function updateLiveFeedback() {
 }
 
 async function registerEvent(fundamento, resultado) {
-    if(!currentMatchId) return alert("Inicie uma partida");
+    if(!currentMatchId) return toast("Inicie uma partida", "error");
     const atleta = focusPlayer;
-    if(!atleta) return alert("Selecione um atleta foco primeiro.");
+    if(!atleta) return toast("Selecione um atleta foco primeiro.", "error");
 
     liveMatchStats[atleta][fundamento]++;
     updateLiveFeedback();
 
     const { error } = await _supabase.from('eventos').insert([{ partida_id: currentMatchId, atleta: atleta, fundamento: fundamento, resultado: resultado }]);
-    if(error) console.error("Falha ao salvar evento no DB");
+    if(error) { console.error("Falha ao salvar evento no DB"); toast("Falha ao salvar esse lance — verifique sua conexão.", "error"); }
 }
 
 // Cancela a partida atual: apaga os eventos já lançados e a própria partida, sem gerar planilha
 async function cancelMatch() {
     if(!currentMatchId) return;
-    const ok = confirm("Cancelar esta partida? Todos os lançamentos feitos até agora serão apagados e nada será salvo.");
+    const ok = await confirmDialog("Cancelar esta partida? Todos os lançamentos feitos até agora serão apagados e nada será salvo.", { confirmText: 'Cancelar partida', cancelText: 'Voltar', danger: true });
     if(!ok) return;
 
     await _supabase.from('eventos').delete().eq('partida_id', currentMatchId);
@@ -1204,6 +1348,7 @@ async function cancelMatch() {
     document.getElementById('pre-match-area').classList.remove('hidden');
     document.getElementById('match-name').value = '';
     document.querySelectorAll('.match-player-cb:checked').forEach(cb => cb.checked = false);
+    toast("Partida cancelada.", "info");
 }
 
 // Normaliza o campo "atletas" de uma partida para sempre virar um array limpo de nicks,
@@ -1334,7 +1479,7 @@ function closeMatchDetails() {
 
 // --- EXPORTAÇÃO CSV, com as mesmas colunas e fórmulas da planilha-modelo ---
 function downloadMatchCSV() {
-    if (!lastMatchTableData) { alert("Abra os detalhes de uma partida primeiro."); return; }
+    if (!lastMatchTableData) { toast("Abra os detalhes de uma partida primeiro.", "error"); return; }
     const { matchName, perAthlete, teamStats } = lastMatchTableData;
 
     const header = ['ATLETA', ...SCOUT_TABLE_COLUMNS.map(c => `${c.group}_${c.header}`)].join(';');
@@ -1442,7 +1587,8 @@ async function loadMatchHistory(u) {
 
 // --- FUNÇÃO DE ENCERRAR ATUALIZADA ---
 async function endMatch() {
-    if(confirm("Deseja encerrar a partida e salvar no histórico? (Você pode baixar a planilha clicando no histórico dps)")) {
+    const ok = await confirmDialog("Deseja encerrar a partida e salvar no histórico? Você pode baixar a planilha depois, pelo Histórico.", { confirmText: 'Encerrar partida' });
+    if(ok) {
         currentMatchId = null;
         currentMatchName = "";
         liveMatchStats = {};
@@ -1453,7 +1599,7 @@ async function endMatch() {
         document.querySelectorAll('.match-player-cb:checked').forEach(cb => cb.checked = false);
 
         showPage('profile');
-        alert("Partida salva! Verifique o Histórico no seu Dashboard.");
+        toast("Partida salva! Verifique o Histórico no seu Dashboard.", "success");
     }
 }
 
@@ -1469,24 +1615,27 @@ function renderSkeletons(container, count) {
     container.innerHTML = Array.from({ length: count }, () => '<div class="skeleton-row"></div>').join('');
 }
 
-async function renderSearch() {
+let searchOffset = 0;
+const SEARCH_PAGE_SIZE = 30;
+
+async function renderSearch(append = false) {
     const q = document.getElementById('search-input').value.toLowerCase();
     const pos = document.getElementById('search-pos').value;
     const city = document.getElementById('search-city').value;
     const team = document.getElementById('search-team').value;
     const list = document.getElementById('athlete-list');
-    renderSkeletons(list, 5);
+    if (!append) { searchOffset = 0; renderSkeletons(list, 5); }
 
     let query = _supabase.from('atletas').select('*').ilike('nick', `%${q}%`);
     if(pos) query = query.eq('pos', pos);
     if(city) query = query.eq('city', city);
     if(team) query = query.eq('team', team);
 
-    const { data } = await query.limit(30);
+    const { data } = await query.range(searchOffset, searchOffset + SEARCH_PAGE_SIZE - 1);
 
-    if (!data || data.length === 0) { list.innerHTML = '<p class="empty-state">Nenhum atleta encontrado.</p>'; return; }
+    if (!append && (!data || data.length === 0)) { list.innerHTML = '<p class="empty-state">Nenhum atleta encontrado.</p>'; return; }
 
-    const html = data.map((u, i) => {
+    const html = (data || []).map((u, i) => {
         const { ovr } = computeOverall(u);
         const ovrColor = getDynamicColor(ovr);
         const avatar = u.photo || DEFAULT_AVATAR;
@@ -1495,7 +1644,17 @@ async function renderSearch() {
         return `<div class="athlete-item" style="border-left: 4px solid ${ovrColor}; animation-delay:${delay}ms;" onclick="loadOther('${u.nick}')"><div class="athlete-info"><img src="${avatar}" loading="lazy" decoding="async"><div><h4>${u.nick}</h4><p>${u.pos} | ${u.team}</p></div></div><div class="search-ovr" style="border-color: ${ovrColor};"><small style="color: ${ovrColor};">OVR</small><span style="color: ${ovrColor};">${ovr}</span></div></div>`;
     }).join('');
 
-    list.innerHTML = html;
+    const existingBtn = document.getElementById('search-load-more');
+    if (existingBtn) existingBtn.remove();
+
+    if (append) list.insertAdjacentHTML('beforeend', html);
+    else list.innerHTML = html;
+
+    searchOffset += (data ? data.length : 0);
+
+    if (data && data.length === SEARCH_PAGE_SIZE) {
+        list.insertAdjacentHTML('beforeend', `<button id="search-load-more" class="btn btn-ghost load-more-btn" onclick="renderSearch(true)">Carregar mais atletas</button>`);
+    }
 }
 
 async function renderRanking() {
@@ -1555,7 +1714,7 @@ async function loadOther(nick) {
 
 function showPage(p) {
     if(p === 'game' && currentUserData && currentUserData.role !== 'treinador') {
-        alert("Acesso restrito! Somente contas do tipo 'Treinador' podem acessar a criação de partidas.");
+        toast("Acesso restrito! Somente contas do tipo 'Treinador' podem acessar a criação de partidas.", "error");
         return;
     }
 
