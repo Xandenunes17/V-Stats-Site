@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>VS | V-Stats</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#22C55E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="V-Stats">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png">
+<link rel="icon" href="https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
@@ -660,6 +667,12 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                     <div class="chart-box"><canvas id="barChart"></canvas></div>
                 </div>
 
+                <div id="evolution-chart-area" class="card-section">
+                    <h3 class="section-title">📈 Evolução (APV por Partida)</h3>
+                    <div class="chart-box"><canvas id="evolutionChart"></canvas></div>
+                    <p id="evolution-empty" class="empty-state hidden">Ainda não há partidas suficientes para mostrar a evolução (mínimo 2).</p>
+                </div>
+
                 <div id="match-history-area" class="card-section">
                     <h3 class="section-title">📜 Histórico de Partidas</h3>
                     <div id="history-list" class="history-list"></div>
@@ -669,6 +682,13 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                     <button class="btn btn-danger" id="btn-logout" onclick="logout()">Sair do Sistema</button>
                 </div>
             </div>
+        </div>
+
+        <div id="page-team" class="app-page hidden">
+            <button class="btn btn-ghost btn-sm" onclick="showPage('search')" style="margin-bottom:15px;">← Voltar</button>
+            <h2 class="page-header" id="team-page-title">🏐 Time</h2>
+            <div id="team-summary" class="panel" style="margin-bottom:16px;"></div>
+            <div id="team-roster"></div>
         </div>
 
         <div id="page-game" class="app-page hidden">
@@ -741,6 +761,14 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
 </div>
 
 <script>
+// Registro do Service Worker (permite instalar o V-Stats como app no celular/computador).
+// sw.js e manifest.json precisam estar na mesma pasta que este index.html no servidor.
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker não registrado:', err));
+    });
+}
+
 const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co'; 
 const SB_KEY = 'sb_publishable_xTtFi8LsDmgHIxeez3OCdg_sIhEhG-y';
 const _supabase = supabase.createClient(SB_URL, SB_KEY);
@@ -1035,6 +1063,16 @@ function displayCard(u) {
     document.getElementById('display-city-flag').style.display = BIBLIOTECA_IMAGENS.cidades[u.city] ? 'block' : 'none';
     document.getElementById('btn-edit-trigger').style.display = isOwner ? 'block' : 'none';
 
+    // Escudo do time leva pra página do elenco — só se houver um time de fato definido
+    const teamLogoEl = document.getElementById('display-team-logo');
+    if (u.team) {
+        teamLogoEl.style.cursor = 'pointer';
+        teamLogoEl.title = `Ver elenco: ${u.team}`;
+        teamLogoEl.onclick = () => loadTeamPage(u.team);
+    } else {
+        teamLogoEl.onclick = null;
+    }
+
     const grid = document.getElementById('card-stats-grid');
     const { s, ovr } = computeOverall(u);
     const boxesHtml = [];
@@ -1070,6 +1108,7 @@ function displayCard(u) {
     requestAnimationFrame(() => requestAnimationFrame(() => initChart(vals, ovrColor)));
     
     loadBarChart(u.nick); 
+    loadEvolutionChart(u.nick);
     loadMatchHistory(u);
 }
 
@@ -1223,6 +1262,76 @@ async function loadBarChart(nick) {
             scales: { 
                 y: { min: -20, max: 100, ticks: { color: '#9CA3AF', stepSize: 20 } }, 
                 x: { ticks: { color: '#E5E7EB', font: { size: 9, weight: 'bold' } } } 
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+// Evolução do APV do atleta ao longo das partidas — agrupa os eventos por partida, calcula o
+// APV de cada uma e ordena pela data da partida (não pela ordem de inserção dos eventos).
+let evolutionChartObj = null;
+async function loadEvolutionChart(nick) {
+    const area = document.getElementById('evolution-chart-area');
+    const chartBox = area.querySelector('.chart-box');
+    const emptyMsg = document.getElementById('evolution-empty');
+
+    const { data: eventos } = await _supabase.from('eventos').select('partida_id, fundamento, resultado').eq('atleta', nick);
+
+    const grouped = {};
+    (eventos || []).forEach(e => {
+        if (!grouped[e.partida_id]) grouped[e.partida_id] = [];
+        grouped[e.partida_id].push(e);
+    });
+    const partidaIds = Object.keys(grouped);
+
+    if (partidaIds.length < 2) {
+        chartBox.classList.add('hidden'); emptyMsg.classList.remove('hidden');
+        if (evolutionChartObj) { evolutionChartObj.destroy(); evolutionChartObj = null; }
+        return;
+    }
+
+    const { data: partidas } = await _supabase.from('partidas').select('id, nome, created_at').in('id', partidaIds);
+    const partidaMap = {};
+    (partidas || []).forEach(p => partidaMap[p.id] = p);
+
+    const points = partidaIds
+        .filter(pid => partidaMap[pid]) // ignora eventos de partidas que não existem mais (ex: canceladas)
+        .map(pid => ({
+            nome: partidaMap[pid].nome || `Partida #${pid}`,
+            data: partidaMap[pid].created_at,
+            apv: calcFundamentos(grouped[pid]).APV
+        }))
+        .sort((a, b) => new Date(a.data) - new Date(b.data));
+
+    if (points.length < 2) {
+        chartBox.classList.add('hidden'); emptyMsg.classList.remove('hidden');
+        if (evolutionChartObj) { evolutionChartObj.destroy(); evolutionChartObj = null; }
+        return;
+    }
+
+    chartBox.classList.remove('hidden'); emptyMsg.classList.add('hidden');
+    const ctx = document.getElementById('evolutionChart').getContext('2d');
+    if (evolutionChartObj) evolutionChartObj.destroy();
+
+    evolutionChartObj = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: points.map(p => p.nome),
+            datasets: [{
+                data: points.map(p => p.apv),
+                borderColor: '#22C55E',
+                backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                pointBackgroundColor: '#22C55E',
+                pointRadius: 4, pointHoverRadius: 6,
+                borderWidth: 2, tension: 0.3, fill: true
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                y: { min: -20, max: 100, ticks: { color: '#9CA3AF', stepSize: 20 } },
+                x: { ticks: { color: '#E5E7EB', font: { size: 9 } } }
             },
             plugins: { legend: { display: false } }
         }
@@ -1710,6 +1819,54 @@ async function loadOther(nick) {
         document.getElementById('btn-back').style.display='block'; 
         document.getElementById('btn-logout').classList.add('hidden'); 
     } 
+}
+
+// Página do time: agrega o elenco inteiro e calcula as médias do time a partir dos mesmos dados já usados no perfil
+async function loadTeamPage(teamName) {
+    document.querySelectorAll('.app-page').forEach(el => { el.classList.add('hidden'); el.classList.remove('page-enter'); });
+    const target = document.getElementById('page-team');
+    target.classList.remove('hidden');
+    requestAnimationFrame(() => target.classList.add('page-enter'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+    document.getElementById('team-page-title').innerText = `🏐 ${teamName}`;
+    const summaryEl = document.getElementById('team-summary');
+    const rosterEl = document.getElementById('team-roster');
+    summaryEl.innerHTML = '';
+    renderSkeletons(rosterEl, 4);
+
+    const { data } = await _supabase.from('atletas').select('*').eq('team', teamName);
+
+    if (!data || data.length === 0) {
+        rosterEl.innerHTML = '<p class="empty-state">Nenhum atleta neste time ainda.</p>';
+        return;
+    }
+
+    const computed = data.map(u => ({ u, ...computeOverall(u) }));
+    const avgOvr = Math.round(computed.reduce((a, c) => a + c.ovr, 0) / computed.length);
+    const avgByStat = {};
+    STAT_KEYS.forEach(k => { avgByStat[k] = Math.round(computed.reduce((a, c) => a + c.s[k].value, 0) / computed.length); });
+    const avgColor = getDynamicColor(avgOvr);
+
+    summaryEl.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px;">
+            <div>
+                <span class="section-title" style="margin:0;">Elenco</span>
+                <div style="font-size:22px; font-family:var(--font-display); color:var(--white);">${computed.length} atleta${computed.length > 1 ? 's' : ''}</div>
+            </div>
+            <div class="scout-apv-badge" style="border-color:${avgColor}; color:${avgColor};">OVR MÉDIO<br><b>${avgOvr}</b></div>
+        </div>
+        <div class="stats-grid" style="padding:0;">
+            ${STAT_KEYS.map(k => `<div class="stat-box"><span class="stat-name" style="color:${getDynamicColor(avgByStat[k])};">${k}</span><span class="stat-num" style="color:${getDynamicColor(avgByStat[k])};">${avgByStat[k]}</span></div>`).join('')}
+        </div>
+    `;
+
+    rosterEl.innerHTML = computed.sort((a, b) => b.ovr - a.ovr).map((c, i) => {
+        const color = getDynamicColor(c.ovr);
+        const avatar = c.u.photo || DEFAULT_AVATAR;
+        const delay = Math.min(i * 30, 300);
+        return `<div class="athlete-item" style="border-left: 4px solid ${color}; animation-delay:${delay}ms;" onclick="loadOther('${c.u.nick}')"><div class="athlete-info"><img src="${avatar}" loading="lazy" decoding="async"><div><h4>${c.u.nick}</h4><p>${c.u.pos}</p></div></div><div class="search-ovr" style="border-color: ${color};"><small style="color: ${color};">OVR</small><span style="color: ${color};">${c.ovr}</span></div></div>`;
+    }).join('');
 }
 
 function showPage(p) {
