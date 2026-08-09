@@ -53,6 +53,24 @@
     --border-radius: var(--radius-md);
 }
 
+/* ---------- Tema claro ---------- */
+/* Mantém as cores de marca (verde, dourado, vermelho, azul); só inverte os neutros. */
+body.light-theme {
+    --bg-main: #F3F5F7;
+    --bg-panel: #FFFFFF;
+    --bg-card: #ECEFF2;
+    --bg-elevated: #E1E5EA;
+    --text-light: #1A2027;
+    --text-dim: #667080;
+    --white: #0B0D11;
+    --star-off: #C7CDD4;
+    --border-subtle: 1px solid rgba(10, 15, 20, 0.09);
+    --shadow-card: 0 16px 34px -16px rgba(20, 30, 45, 0.18);
+}
+body.light-theme .player-card::before { opacity: .5; }
+body.light-theme .modal-close { color: var(--text-dim); }
+body.light-theme .toast { box-shadow: 0 10px 26px -8px rgba(20,30,45,0.25); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-body); }
 html { scroll-behavior: smooth; }
 body {
@@ -89,6 +107,15 @@ nav {
     position: sticky; top: 0; z-index: 1000;
 }
 nav .court-divider { margin-top: 16px; }
+
+.theme-toggle-btn {
+    position: absolute; top: 14px; right: 16px; width: 36px; height: 36px;
+    border-radius: 50%; border: var(--border-subtle); background: var(--bg-panel);
+    color: var(--text-light); font-size: 16px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: transform .2s var(--ease), border-color .2s;
+}
+.theme-toggle-btn:hover { border-color: var(--primary); transform: scale(1.06); }
+.theme-toggle-btn:active { transform: scale(0.92); }
 
 .main-container { width: 95%; max-width: 500px; margin: 20px auto; display: flex; flex-direction: column; gap: 20px; }
 
@@ -244,12 +271,21 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     background: linear-gradient(0deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 60%, transparent 100%);
 }
 .team-banner-empty { background-image: radial-gradient(circle at 30% 20%, rgba(34,197,94,0.18), transparent 55%), var(--bg-panel) !important; }
-.team-banner-overlay { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; padding: 16px; width: 100%; }
-.team-page-logo { width: 56px; height: 56px; object-fit: contain; background: rgba(0,0,0,0.35); border-radius: var(--radius-sm); padding: 6px; flex-shrink: 0; }
-.team-page-name { font-family: var(--font-display); color: var(--white); font-size: 20px; text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,0.6); overflow-wrap: anywhere; }
-.team-page-city { font-size: 11px; color: var(--text-light); opacity: .85; margin-top: 2px; }
+.team-banner-overlay { position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; padding: 16px; width: 100%; }
+.team-page-logo {
+    width: 100px; height: 100px; object-fit: contain;
+    border-radius: var(--radius-md); flex-shrink: 0; border: 3px solid var(--primary);
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.35), 0 10px 24px -6px rgba(0,0,0,0.6), var(--glow);
+}
+.team-page-name { font-family: var(--font-display); color: var(--white); font-size: 22px; text-transform: uppercase; text-shadow: 0 2px 8px rgba(0,0,0,0.6); overflow-wrap: anywhere; }
+.team-page-city { font-size: 12px; color: var(--text-light); opacity: .85; margin-top: 3px; }
 .team-charts-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 @media (min-width: 640px) { .team-charts-grid { grid-template-columns: 1fr 1fr; } }
+
+@media (max-width: 420px) {
+    .team-page-logo { width: 72px; height: 72px; }
+    .team-page-name { font-size: 17px; }
+}
 
 /* ---------- Toasts (substituem os alert() do navegador) ---------- */
 .toast-container {
@@ -530,6 +566,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
 <div id="offline-banner" class="offline-banner hidden">📡 Você está offline — o app continua funcionando e sincroniza sozinho quando a internet voltar.</div>
 
 <nav>
+    <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()" title="Alternar tema claro/escuro">🌙</button>
     <img src="https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png" class="logo-main" alt="V-STATS Logo">
     <div class="court-divider"></div>
 </nav>
@@ -695,8 +732,13 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
             </div>
         </div>
 
+        <div id="page-times" class="app-page hidden">
+            <h2 class="page-header">🏐 Times</h2>
+            <div id="times-list"></div>
+        </div>
+
         <div id="page-team" class="app-page hidden">
-            <button class="btn btn-ghost btn-sm" onclick="showPage('search')" style="margin-bottom:15px;">← Voltar</button>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('times')" style="margin-bottom:15px;">← Voltar</button>
 
             <div id="team-banner" class="team-banner">
                 <div class="team-banner-overlay">
@@ -760,6 +802,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                     Selecione um jogador para avaliar...
                 </div>
                 <p id="sync-indicator" class="sync-indicator sync-ok">✓ Todos os lances sincronizados</p>
+                <button type="button" class="btn btn-ghost btn-sm" style="width:100%; margin-top:8px;" onclick="undoLastEvent()">↩ Desfazer último lance</button>
 
                 <div id="event-buttons-container"></div>
                 <div class="btn-row" style="margin-top:20px;">
@@ -775,6 +818,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
     <div class="nav-item" id="nav-profile" onclick="showPage('profile')"><span class="nav-icon">👤</span> DASHBOARD</div>
     <div class="nav-item" id="nav-ranking" onclick="showPage('ranking')"><span class="nav-icon">🏆</span> RANKINGS</div>
     <div class="nav-item" id="nav-search" onclick="showPage('search')"><span class="nav-icon">🔍</span> BUSCA</div>
+    <div class="nav-item" id="nav-times" onclick="showPage('times')"><span class="nav-icon">🏐</span> TIMES</div>
     <div class="nav-item" id="nav-game" onclick="showPage('game')"><span class="nav-icon">🎯</span> JOGO</div>
 </div>
 
@@ -808,6 +852,41 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker não registrado:', err));
     });
+}
+
+// ---------- Tema claro/escuro ----------
+// Aplicado o quanto antes (antes mesmo do resto do script rodar) pra não haver "flash" do
+// tema errado. Padrão é escuro — só muda pra claro se o usuário já tiver escolhido antes.
+(function applyStoredTheme() {
+    const isLight = localStorage.getItem('vstats_theme') === 'light';
+    if (isLight) document.body.classList.add('light-theme');
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+})();
+
+function isLightTheme() { return document.body.classList.contains('light-theme'); }
+// Chart.js desenha em canvas e não entende var(--...) do CSS, então os gráficos precisam
+// buscar a cor certa na hora de serem montados/remontados.
+function chartAxisColor() { return isLightTheme() ? '#5B6572' : '#9CA3AF'; }
+function chartLabelColor() { return isLightTheme() ? '#1A2027' : '#E5E7EB'; }
+function chartGridColor() { return isLightTheme() ? 'rgba(10,15,20,0.08)' : 'rgba(255,255,255,0.05)'; }
+
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-theme');
+    localStorage.setItem('vstats_theme', isLight ? 'light' : 'dark');
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+    refreshChartsForTheme();
+}
+
+// Gráficos já montados guardam as cores antigas — precisam ser refeitos pra pegar o tema novo
+function refreshChartsForTheme() {
+    if (!document.getElementById('page-profile').classList.contains('hidden') && viewedUserData) {
+        displayCard(viewedUserData);
+    }
+    if (!document.getElementById('page-team').classList.contains('hidden') && lastTeamPageName) {
+        loadTeamPage(lastTeamPageName);
+    }
 }
 
 const SB_URL = 'https://bxjqvlmqhykzzgnypvsx.supabase.co'; 
@@ -941,6 +1020,7 @@ const debouncedRenderSearch = debounce(() => renderSearch(), 300);
 
 let currentUserData = null;
 let viewedUserData = null;
+let lastTeamPageName = null; // lembra qual time está aberto, usado pra remontar os gráficos ao trocar de tema
 let radarChart = null;
 let barChartObj = null; 
 let isRegisterMode = false;
@@ -975,10 +1055,19 @@ const PENDING_PARTIDAS_KEY = 'vstats_pending_partidas';
 let matchIdMap = {}; // localId -> id real, depois que a partida sincroniza
 const MATCH_ID_MAP_KEY = 'vstats_match_id_map';
 
+// Lances já sincronizados que o treinador desfez — precisam ser removidos no servidor
+let deleteQueue = [];
+const PENDING_DELETES_KEY = 'vstats_pending_deletes';
+
+// Histórico (só em memória) dos lances da partida atual, na ordem em que foram clicados —
+// permite desfazer o último, esteja ele ainda na fila ou já sincronizado.
+let matchEventLog = [];
+
 function loadPendingQueueFromStorage() {
     try { eventQueue = JSON.parse(localStorage.getItem(PENDING_EVENTS_KEY)) || []; } catch (e) { eventQueue = []; }
     try { pendingPartidas = JSON.parse(localStorage.getItem(PENDING_PARTIDAS_KEY)) || []; } catch (e) { pendingPartidas = []; }
     try { matchIdMap = JSON.parse(localStorage.getItem(MATCH_ID_MAP_KEY)) || {}; } catch (e) { matchIdMap = {}; }
+    try { deleteQueue = JSON.parse(localStorage.getItem(PENDING_DELETES_KEY)) || []; } catch (e) { deleteQueue = []; }
 }
 function persistEventQueue() {
     if (eventQueue.length === 0) localStorage.removeItem(PENDING_EVENTS_KEY);
@@ -989,6 +1078,10 @@ function persistPendingPartidas() {
     else localStorage.setItem(PENDING_PARTIDAS_KEY, JSON.stringify(pendingPartidas));
 }
 function persistMatchIdMap() { localStorage.setItem(MATCH_ID_MAP_KEY, JSON.stringify(matchIdMap)); }
+function persistDeleteQueue() {
+    if (deleteQueue.length === 0) localStorage.removeItem(PENDING_DELETES_KEY);
+    else localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(deleteQueue));
+}
 
 function updateSyncIndicator() {
     const el = document.getElementById('sync-indicator');
@@ -1060,10 +1153,44 @@ async function flushEventQueue() {
 
 // Ponto único de sincronização: primeiro resolve partidas pendentes (pra destravar os eventos
 // presos nelas), depois manda os lances. Chamado pelo timer, e ao voltar a conexão.
+// Aplica no servidor as remoções de lances que já tinham sido sincronizados quando foram desfeitos
+async function flushDeleteQueue() {
+    if (deleteQueue.length === 0 || !navigator.onLine) return;
+    for (const d of [...deleteQueue]) {
+        if (isLocalId(d.partida_id)) continue; // por segurança; não deveria acontecer
+        const { error } = await _supabase.from('eventos').delete().match({ partida_id: d.partida_id, atleta: d.atleta, fundamento: d.fundamento, resultado: d.resultado, criado_em: d.criado_em });
+        if (!error) { deleteQueue = deleteQueue.filter(x => x !== d); persistDeleteQueue(); }
+        else break;
+    }
+}
+
 async function trySyncAll() {
     if (!navigator.onLine) return;
     await flushPendingPartidas();
     await flushEventQueue();
+    await flushDeleteQueue();
+}
+
+// Desfaz o último lance clicado na partida atual — se ele ainda não tinha sido sincronizado,
+// só sai da fila; se já tinha ido pro servidor, marca a remoção pra ser aplicada.
+async function undoLastEvent() {
+    if (matchEventLog.length === 0) return toast("Nada para desfazer.", "info");
+    const entry = matchEventLog.pop();
+
+    if (liveMatchStats[entry.atleta]) liveMatchStats[entry.atleta][entry.fundamento] = Math.max(0, liveMatchStats[entry.atleta][entry.fundamento] - 1);
+    updateLiveFeedback();
+
+    const stillQueued = eventQueue.some(e => e._localId === entry._localId);
+    if (stillQueued) {
+        eventQueue = eventQueue.filter(e => e._localId !== entry._localId);
+        persistEventQueue();
+        updateSyncIndicator();
+    } else {
+        deleteQueue.push({ partida_id: entry.partida_id, atleta: entry.atleta, fundamento: entry.fundamento, resultado: entry.resultado, criado_em: entry.criado_em });
+        persistDeleteQueue();
+        flushDeleteQueue();
+    }
+    toast(`Desfeito: ${entry.fundamento} — ${entry.resultado} (${entry.atleta})`, "info");
 }
 
 // Rede de segurança: tenta sincronizar sozinho a cada poucos segundos, mesmo sem novo lance sendo lançado
@@ -1415,7 +1542,7 @@ function initChart(data, baseColor) {
     radarChart = new Chart(ctx, {
         type: 'radar',
         data: { labels: STAT_KEYS, datasets: [{ data, backgroundColor: bgColor, borderColor: borderColor, borderWidth: 2, pointBackgroundColor: borderColor, pointBorderColor: '#0F1115', pointRadius: 4, pointHoverRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 20 }, grid: { color: 'rgba(255,255,255,0.05)' }, angleLines: { color: 'rgba(255,255,255,0.05)' }, pointLabels: { color: '#E5E7EB', font: { family: 'Orbitron', weight: 'bold', size: 10 } } } }, plugins: { legend: { display: false } } }
+        options: { responsive: true, maintainAspectRatio: false, scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 20 }, grid: { color: chartGridColor() }, angleLines: { color: chartGridColor() }, pointLabels: { color: chartLabelColor(), font: { family: 'Orbitron', weight: 'bold', size: 10 } } } }, plugins: { legend: { display: false } } }
     });
 }
 
@@ -1552,8 +1679,8 @@ async function loadBarChart(nick) {
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: { 
-                y: { min: -20, max: 100, ticks: { color: '#9CA3AF', stepSize: 20 } }, 
-                x: { ticks: { color: '#E5E7EB', font: { size: 9, weight: 'bold' } } } 
+                y: { min: -20, max: 100, ticks: { color: chartAxisColor(), stepSize: 20 }, grid: { color: chartGridColor() } }, 
+                x: { ticks: { color: chartLabelColor(), font: { size: 9, weight: 'bold' } }, grid: { color: chartGridColor() } } 
             },
             plugins: { legend: { display: false } }
         }
@@ -1622,8 +1749,8 @@ async function loadEvolutionChart(nick) {
         options: {
             responsive: true, maintainAspectRatio: false,
             scales: {
-                y: { min: -20, max: 100, ticks: { color: '#9CA3AF', stepSize: 20 } },
-                x: { ticks: { color: '#E5E7EB', font: { size: 9 } } }
+                y: { min: -20, max: 100, ticks: { color: chartAxisColor(), stepSize: 20 }, grid: { color: chartGridColor() } },
+                x: { ticks: { color: chartLabelColor(), font: { size: 9 } }, grid: { color: chartGridColor() } }
             },
             plugins: { legend: { display: false } }
         }
@@ -1708,6 +1835,7 @@ async function startMatch() {
 
     currentMatchName = mName;
     liveMatchStats = {}; 
+    matchEventLog = [];
     focusPlayer = selectedPlayers[0];
     
     selectedPlayers.forEach(nick => {
@@ -1755,7 +1883,9 @@ function registerEvent(fundamento, resultado) {
 
     // Entra na fila em vez de inserir na hora — mais rápido pro treinador (não espera rede)
     // e mais seguro (o lance não se perde se a internet falhar, mesmo que seja a partida inteira)
-    eventQueue.push({ _localId: makeLocalId('e'), partida_id: currentMatchId, atleta, fundamento, resultado, criado_em: new Date().toISOString() });
+    const ev = { _localId: makeLocalId('e'), partida_id: currentMatchId, atleta, fundamento, resultado, criado_em: new Date().toISOString() };
+    eventQueue.push(ev);
+    matchEventLog.push(ev); // mesma referência: se o partida_id for atualizado (local -> real), reflete aqui também
     persistEventQueue();
     updateSyncIndicator();
 
@@ -1783,6 +1913,7 @@ async function cancelMatch() {
     currentMatchId = null;
     currentMatchName = "";
     liveMatchStats = {};
+    matchEventLog = [];
     focusPlayer = null;
 
     document.getElementById('match-area').classList.add('hidden');
@@ -2044,6 +2175,7 @@ async function endMatch() {
         currentMatchId = null;
         currentMatchName = "";
         liveMatchStats = {};
+        matchEventLog = [];
         focusPlayer = null;
         document.getElementById('pre-match-area').classList.remove('hidden');
         document.getElementById('match-area').classList.add('hidden');
@@ -2174,12 +2306,50 @@ async function loadOther(nick) {
 let teamRadarChartObj = null;
 let teamPosChartObj = null;
 
+// Lista todos os times cadastrados (aba "Times"), com elenco e OVR médio de cada um.
+// Busca todos os atletas de uma vez só e agrupa localmente, em vez de 1 consulta por time.
+async function renderTeamsList() {
+    const listEl = document.getElementById('times-list');
+    if (TEAMS_CACHE.length === 0) {
+        listEl.innerHTML = '<p class="empty-state">Nenhum time cadastrado ainda.</p>';
+        return;
+    }
+    renderSkeletons(listEl, TEAMS_CACHE.length);
+
+    const { data: atletas } = await _supabase.from('atletas').select('nick,team,stats,ratings');
+    const byTeam = {};
+    (atletas || []).forEach(u => { (byTeam[u.team] = byTeam[u.team] || []).push(u); });
+
+    const results = TEAMS_CACHE.map(t => {
+        const roster = byTeam[t.nome] || [];
+        const ovrs = roster.map(u => computeOverall(u).ovr);
+        const avgOvr = ovrs.length ? Math.round(ovrs.reduce((a, b) => a + b, 0) / ovrs.length) : 0;
+        return { ...t, count: roster.length, avgOvr };
+    });
+
+    listEl.innerHTML = results.map((t, i) => {
+        const color = getDynamicColor(t.avgOvr || 50);
+        const delay = Math.min(i * 30, 300);
+        const logo = t.logo_url || DEFAULT_AVATAR;
+        return `<div class="athlete-item" style="border-left: 4px solid ${color}; animation-delay:${delay}ms;" onclick="loadTeamPage('${t.nome}')">
+            <div class="athlete-info">
+                <img src="${logo}" loading="lazy" decoding="async">
+                <div><h4>${t.nome}</h4><p>${t.count} atleta${t.count === 1 ? '' : 's'}${t.cidade ? ' • ' + t.cidade : ''}</p></div>
+            </div>
+            <div class="search-ovr" style="border-color: ${color};"><small style="color: ${color};">OVR MÉD.</small><span style="color: ${color};">${t.avgOvr || '-'}</span></div>
+        </div>`;
+    }).join('');
+}
+
 async function loadTeamPage(teamName) {
+    lastTeamPageName = teamName;
     document.querySelectorAll('.app-page').forEach(el => { el.classList.add('hidden'); el.classList.remove('page-enter'); });
     const target = document.getElementById('page-team');
     target.classList.remove('hidden');
     requestAnimationFrame(() => target.classList.add('page-enter'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const navTimes = document.getElementById('nav-times');
+    if (navTimes) navTimes.classList.add('active');
 
     const teamInfo = getTeamInfo(teamName) || {};
     document.getElementById('team-page-title').innerText = teamName;
@@ -2233,7 +2403,7 @@ async function loadTeamPage(teamName) {
         data: { labels: STAT_KEYS, datasets: [{ data: STAT_KEYS.map(k => avgByStat[k]), backgroundColor: 'rgba(34,197,94,0.2)', borderColor: '#22C55E', borderWidth: 2, pointBackgroundColor: '#22C55E', pointBorderColor: '#0F1115', pointRadius: 4 }] },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: 'rgba(255,255,255,0.05)' }, angleLines: { color: 'rgba(255,255,255,0.05)' }, pointLabels: { color: '#E5E7EB', font: { family: 'Orbitron', weight: 'bold', size: 10 } } } },
+            scales: { r: { min: 0, max: 100, ticks: { display: false, stepSize: 25 }, grid: { color: chartGridColor() }, angleLines: { color: chartGridColor() }, pointLabels: { color: chartLabelColor(), font: { family: 'Orbitron', weight: 'bold', size: 10 } } } },
             plugins: { legend: { display: false } }
         }
     });
@@ -2246,10 +2416,10 @@ async function loadTeamPage(teamName) {
 
     teamPosChartObj = new Chart(document.getElementById('teamPosChart').getContext('2d'), {
         type: 'doughnut',
-        data: { labels: posLabels, datasets: [{ data: posLabels.map(p => posCounts[p]), backgroundColor: posColors, borderColor: '#141920', borderWidth: 2 }] },
+        data: { labels: posLabels, datasets: [{ data: posLabels.map(p => posCounts[p]), backgroundColor: posColors, borderColor: isLightTheme() ? '#FFFFFF' : '#141920', borderWidth: 2 }] },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { color: '#E5E7EB', font: { size: 10 }, boxWidth: 10, padding: 10 } } }
+            plugins: { legend: { position: 'bottom', labels: { color: chartLabelColor(), font: { size: 10 }, boxWidth: 10, padding: 10 } } }
         }
     });
 
@@ -2277,6 +2447,7 @@ function showPage(p) {
     if(p === 'profile') { displayCard(currentUserData); document.getElementById('btn-back').style.display='none'; document.getElementById('btn-logout').classList.remove('hidden'); }
     else if(p === 'search') renderSearch(); 
     else if(p === 'ranking') renderRanking();
+    else if(p === 'times') renderTeamsList();
     else if(p === 'game') loadPlayersForMatch(); 
 }
 
