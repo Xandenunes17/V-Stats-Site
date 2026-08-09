@@ -343,6 +343,11 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
 .sync-indicator { font-size: 10px; text-align: center; margin-top: 6px; font-weight: 700; letter-spacing: .3px; }
 .sync-indicator.sync-ok { color: var(--primary); }
 .sync-indicator.sync-pending { color: var(--accent-gold); }
+
+.offline-banner {
+    background: var(--accent-gold); color: #1a1300; text-align: center; font-size: 12px; font-weight: 700;
+    padding: 8px 14px; position: sticky; top: 0; z-index: 1100;
+}
 .event-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
 .event-grid .btn { border-color: var(--info); color: var(--info); }
 .event-grid .btn.err { border-color: var(--danger); color: var(--danger); }
@@ -521,6 +526,8 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
 </style>
 </head>
 <body>
+
+<div id="offline-banner" class="offline-banner hidden">📡 Você está offline — o app continua funcionando e sincroniza sozinho quando a internet voltar.</div>
 
 <nav>
     <img src="https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site/main/vstats-assets/Logo-VStatus.png" class="logo-main" alt="V-STATS Logo">
@@ -813,13 +820,28 @@ const GITHUB_BASE = "https://raw.githubusercontent.com/Xandenunes17/V-Stats-Site
 let TEAMS_CACHE = [];
 let CITIES_CACHE = [];
 
+const TEAMS_CACHE_KEY = 'vstats_teams_cache';
+const CITIES_CACHE_KEY = 'vstats_cities_cache';
+
 async function loadTeamsAndCities() {
-    const [{ data: times }, { data: cidades }] = await Promise.all([
-        _supabase.from('times').select('*').order('nome'),
-        _supabase.from('cidades').select('*').order('nome')
-    ]);
-    TEAMS_CACHE = times || [];
-    CITIES_CACHE = cidades || [];
+    try {
+        if (!navigator.onLine) throw new Error('offline');
+        const [{ data: times, error: e1 }, { data: cidades, error: e2 }] = await Promise.all([
+            _supabase.from('times').select('*').order('nome'),
+            _supabase.from('cidades').select('*').order('nome')
+        ]);
+        if (e1 || e2) throw (e1 || e2);
+        TEAMS_CACHE = times || [];
+        CITIES_CACHE = cidades || [];
+        localStorage.setItem(TEAMS_CACHE_KEY, JSON.stringify(TEAMS_CACHE));
+        localStorage.setItem(CITIES_CACHE_KEY, JSON.stringify(CITIES_CACHE));
+    } catch (e) {
+        // Sem internet (ou o servidor não respondeu) — usa o que já tiver sido salvo da última
+        // vez que isso carregou com sucesso, pra não deixar os selects vazios e travar o app.
+        console.warn('Times/cidades vieram do cache local (sem conexão com o servidor).');
+        try { TEAMS_CACHE = JSON.parse(localStorage.getItem(TEAMS_CACHE_KEY)) || []; } catch (_) { TEAMS_CACHE = []; }
+        try { CITIES_CACHE = JSON.parse(localStorage.getItem(CITIES_CACHE_KEY)) || []; } catch (_) { CITIES_CACHE = []; }
+    }
     populateTeamCitySelects();
 }
 
@@ -934,47 +956,101 @@ let historyRequestId = 0; // usado para descartar respostas de histórico que ch
 // ginásio), o lance simplesmente se perdia sem aviso. Agora os lances entram numa fila em memória
 // + localStorage e são enviados em lote; se uma tentativa falhar, continuam na fila e são
 // reenviados automaticamente, inclusive depois de um recarregamento da página.
+//
+// Além disso, agora é possível INICIAR uma partida sem internet: ela recebe um ID local
+// temporário (ex: "local-172..."), fica numa fila própria de partidas pendentes, e some da
+// fila assim que for criada de verdade no Supabase — nesse momento, todo mundo que ainda
+// dependia do ID local (a partida atual e os lances já lançados) é atualizado pro ID real.
+function isLocalId(id) { return typeof id === 'string' && id.startsWith('local-'); }
+function makeLocalId(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
+
 let eventQueue = [];
 let isFlushingQueue = false;
 const FLUSH_BATCH_SIZE = 8;
 const PENDING_EVENTS_KEY = 'vstats_pending_events';
 
+let pendingPartidas = [];
+let isFlushingPartidas = false;
+const PENDING_PARTIDAS_KEY = 'vstats_pending_partidas';
+let matchIdMap = {}; // localId -> id real, depois que a partida sincroniza
+const MATCH_ID_MAP_KEY = 'vstats_match_id_map';
+
 function loadPendingQueueFromStorage() {
-    try { eventQueue = JSON.parse(localStorage.getItem(PENDING_EVENTS_KEY)) || []; }
-    catch (e) { eventQueue = []; }
+    try { eventQueue = JSON.parse(localStorage.getItem(PENDING_EVENTS_KEY)) || []; } catch (e) { eventQueue = []; }
+    try { pendingPartidas = JSON.parse(localStorage.getItem(PENDING_PARTIDAS_KEY)) || []; } catch (e) { pendingPartidas = []; }
+    try { matchIdMap = JSON.parse(localStorage.getItem(MATCH_ID_MAP_KEY)) || {}; } catch (e) { matchIdMap = {}; }
 }
 function persistEventQueue() {
     if (eventQueue.length === 0) localStorage.removeItem(PENDING_EVENTS_KEY);
     else localStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(eventQueue));
 }
+function persistPendingPartidas() {
+    if (pendingPartidas.length === 0) localStorage.removeItem(PENDING_PARTIDAS_KEY);
+    else localStorage.setItem(PENDING_PARTIDAS_KEY, JSON.stringify(pendingPartidas));
+}
+function persistMatchIdMap() { localStorage.setItem(MATCH_ID_MAP_KEY, JSON.stringify(matchIdMap)); }
 
 function updateSyncIndicator() {
     const el = document.getElementById('sync-indicator');
     if (!el) return;
-    if (eventQueue.length === 0) {
+    const pending = eventQueue.length + pendingPartidas.length;
+    if (pending === 0) {
         el.textContent = '✓ Todos os lances sincronizados';
         el.className = 'sync-indicator sync-ok';
+    } else if (!navigator.onLine) {
+        el.textContent = `📡 Offline — ${pending} pendente(s), sincroniza sozinho quando a internet voltar`;
+        el.className = 'sync-indicator sync-pending';
     } else {
-        el.textContent = `⏳ ${eventQueue.length} lance(s) sincronizando...`;
+        el.textContent = `⏳ ${pending} pendente(s) sincronizando...`;
         el.className = 'sync-indicator sync-pending';
     }
 }
 
-// Envia até FLUSH_BATCH_SIZE lances de uma vez (1 requisição em vez de várias). Se falhar,
-// os lances continuam na fila — a próxima tentativa (pelo timer ou pelo próximo clique) reenvia.
-async function flushEventQueue() {
-    if (isFlushingQueue || eventQueue.length === 0) return;
-    isFlushingQueue = true;
-    const batch = eventQueue.slice(0, FLUSH_BATCH_SIZE);
+// Cria de verdade, no Supabase, as partidas que foram iniciadas offline (ou que falharam na hora).
+// Ao conseguir, resolve o ID local pro ID real em todo lugar que ainda dependia dele.
+async function flushPendingPartidas() {
+    if (isFlushingPartidas || pendingPartidas.length === 0 || !navigator.onLine) return;
+    isFlushingPartidas = true;
 
-    const { error } = await _supabase.from('eventos').insert(batch);
+    for (const p of [...pendingPartidas]) {
+        const { data, error } = await _supabase.from('partidas').insert([{ treinador: p.treinador, nome: p.nome, atletas: p.atletas }]).select();
+        if (error || !data || !data[0]) { console.warn('Ainda não deu pra sincronizar a partida pendente:', error?.message); break; }
+
+        const realId = data[0].id;
+        matchIdMap[p.localId] = realId;
+        persistMatchIdMap();
+
+        pendingPartidas = pendingPartidas.filter(x => x.localId !== p.localId);
+        persistPendingPartidas();
+
+        eventQueue.forEach(e => { if (e.partida_id === p.localId) e.partida_id = realId; });
+        persistEventQueue();
+
+        if (currentMatchId === p.localId) currentMatchId = realId; // a partida ainda está aberta na tela
+    }
+
+    isFlushingPartidas = false;
+    updateSyncIndicator();
+}
+
+// Envia até FLUSH_BATCH_SIZE lances de uma vez (1 requisição em vez de várias). Lances cuja
+// partida ainda não tem ID real (offline) ficam de fora do lote até a partida sincronizar.
+async function flushEventQueue() {
+    if (isFlushingQueue) return;
+    const sendable = eventQueue.filter(e => !isLocalId(e.partida_id)).slice(0, FLUSH_BATCH_SIZE);
+    if (sendable.length === 0) return;
+    isFlushingQueue = true;
+
+    const rows = sendable.map(({ _localId, ...rest }) => rest); // campo interno, não vai pro banco
+    const { error } = await _supabase.from('eventos').insert(rows);
 
     if (!error) {
-        eventQueue = eventQueue.slice(batch.length);
+        const sentIds = new Set(sendable.map(e => e._localId));
+        eventQueue = eventQueue.filter(e => !sentIds.has(e._localId));
         persistEventQueue();
         updateSyncIndicator();
         isFlushingQueue = false;
-        if (eventQueue.length > 0) flushEventQueue(); // ainda tem mais lote(s) esperando, continua
+        if (eventQueue.some(e => !isLocalId(e.partida_id))) flushEventQueue(); // ainda tem lote pronto, continua
     } else {
         console.warn('Falha ao sincronizar lances (tentando de novo em instantes):', error.message);
         isFlushingQueue = false;
@@ -982,9 +1058,26 @@ async function flushEventQueue() {
     }
 }
 
+// Ponto único de sincronização: primeiro resolve partidas pendentes (pra destravar os eventos
+// presos nelas), depois manda os lances. Chamado pelo timer, e ao voltar a conexão.
+async function trySyncAll() {
+    if (!navigator.onLine) return;
+    await flushPendingPartidas();
+    await flushEventQueue();
+}
+
 // Rede de segurança: tenta sincronizar sozinho a cada poucos segundos, mesmo sem novo lance sendo lançado
-setInterval(() => { if (eventQueue.length > 0) flushEventQueue(); }, 4000);
-loadPendingQueueFromStorage(); // recupera lances que ficaram pendentes de uma sessão anterior (ex: página recarregada)
+setInterval(trySyncAll, 4000);
+loadPendingQueueFromStorage(); // recupera lances/partidas que ficaram pendentes de uma sessão anterior
+
+function updateOfflineBanner() {
+    const el = document.getElementById('offline-banner');
+    if (el) el.classList.toggle('hidden', navigator.onLine);
+    updateSyncIndicator();
+}
+window.addEventListener('online', () => { updateOfflineBanner(); trySyncAll(); toast('Conexão de volta — sincronizando...', 'success'); });
+window.addEventListener('offline', () => { updateOfflineBanner(); toast('Sem conexão. O painel do treinador continua funcionando offline.', 'info'); });
+updateOfflineBanner(); // estado inicial (a página pode já abrir offline, ex: instalada como PWA)
 
 // Função central de cálculo de stats/OVR (evita repetir a mesma fórmula em displayCard, renderSearch e renderRanking)
 function computeOverall(u) {
@@ -1537,8 +1630,9 @@ async function loadEvolutionChart(nick) {
     });
 }
 
+const ROSTER_CACHE_KEY = 'vstats_roster_cache';
+
 async function loadPlayersForMatch() {
-    const { data } = await _supabase.from('atletas').select('nick, pos, team').order('nick');
     const list = document.getElementById('player-checkbox-list');
     const nameInput = document.getElementById('match-filter-name');
     const posSelect = document.getElementById('match-filter-pos');
@@ -1547,8 +1641,21 @@ async function loadPlayersForMatch() {
     if(nameInput) nameInput.value = ''; // Limpa os filtros ao abrir
     if(posSelect) posSelect.value = '';
     if(teamSelect) teamSelect.value = '';
-    
-    if(data) {
+
+    let data = null;
+    if (navigator.onLine) {
+        const res = await _supabase.from('atletas').select('nick, pos, team').order('nick');
+        if (!res.error && res.data) {
+            data = res.data;
+            localStorage.setItem(ROSTER_CACHE_KEY, JSON.stringify(data));
+        }
+    }
+    if (!data) {
+        try { data = JSON.parse(localStorage.getItem(ROSTER_CACHE_KEY)) || []; } catch (e) { data = []; }
+        if (data.length > 0) toast("Sem conexão — usando a lista de atletas salva localmente.", "info");
+    }
+
+    if(data && data.length > 0) {
         // Importante: Manter a classe 'player-cb-label' para o filtro funcionar
         list.innerHTML = data.map(a => `
                 <label class="player-cb-label" data-nick="${a.nick}" data-pos="${a.pos || ''}" data-team="${a.team || ''}">
@@ -1556,7 +1663,7 @@ async function loadPlayersForMatch() {
                     ${a.nick} <span style="color:var(--primary); font-size:10px; margin-left:5px;">(${a.pos || '—'} • ${a.team || '—'})</span>
                 </label>`).join('');
     } else {
-        list.innerHTML = '';
+        list.innerHTML = '<p class="empty-state">Nenhum atleta disponível (e nada salvo localmente ainda — abra essa tela ao menos uma vez com internet).</p>';
     }
 }
 
@@ -1574,20 +1681,31 @@ async function startMatch() {
     const btn = document.getElementById('btn-start-match');
     setButtonBusy(btn, true, 'Iniciando...');
 
-    const { data, error } = await _supabase.from('partidas').insert([{ 
-        treinador: currentUserData.nick, 
-        nome: mName,
-        atletas: selectedPlayers 
-    }]).select();
+    let realId = null;
+    if (navigator.onLine) {
+        const { data, error } = await _supabase.from('partidas').insert([{ 
+            treinador: currentUserData.nick, 
+            nome: mName,
+            atletas: selectedPlayers 
+        }]).select();
+        if (!error && data && data[0]) realId = data[0].id;
+        // Se falhar mesmo online (banco fora do ar, RLS etc.), cai pro modo offline abaixo também.
+    }
 
     setButtonBusy(btn, false);
 
-    if(error) {
-        console.error("Erro ao criar partida:", error);
-        return toast("Erro ao criar partida: " + error.message + (error.hint ? " (" + error.hint + ")" : ""), "error");
+    if (realId) {
+        currentMatchId = realId;
+    } else {
+        // Sem internet (ou o servidor recusou): a partida continua localmente com um ID
+        // temporário e entra na fila pra ser criada de verdade assim que a conexão voltar.
+        const localId = makeLocalId('local');
+        currentMatchId = localId;
+        pendingPartidas.push({ localId, treinador: currentUserData.nick, nome: mName, atletas: selectedPlayers, criado_em: new Date().toISOString() });
+        persistPendingPartidas();
+        toast("Sem conexão — a partida vai continuar offline e sincronizar sozinha quando a internet voltar.", "info");
     }
 
-    currentMatchId = data[0].id;
     currentMatchName = mName;
     liveMatchStats = {}; 
     focusPlayer = selectedPlayers[0];
@@ -1636,12 +1754,12 @@ function registerEvent(fundamento, resultado) {
     updateLiveFeedback();
 
     // Entra na fila em vez de inserir na hora — mais rápido pro treinador (não espera rede)
-    // e mais seguro (o lance não se perde se a internet falhar por um instante)
-    eventQueue.push({ partida_id: currentMatchId, atleta, fundamento, resultado, criado_em: new Date().toISOString() });
+    // e mais seguro (o lance não se perde se a internet falhar, mesmo que seja a partida inteira)
+    eventQueue.push({ _localId: makeLocalId('e'), partida_id: currentMatchId, atleta, fundamento, resultado, criado_em: new Date().toISOString() });
     persistEventQueue();
     updateSyncIndicator();
 
-    if (eventQueue.length >= FLUSH_BATCH_SIZE) flushEventQueue();
+    if (eventQueue.filter(e => !isLocalId(e.partida_id)).length >= FLUSH_BATCH_SIZE) flushEventQueue();
 }
 
 // Cancela a partida atual: apaga os eventos já lançados e a própria partida, sem gerar planilha
@@ -1650,12 +1768,17 @@ async function cancelMatch() {
     const ok = await confirmDialog("Cancelar esta partida? Todos os lançamentos feitos até agora serão apagados e nada será salvo.", { confirmText: 'Cancelar partida', cancelText: 'Voltar', danger: true });
     if(!ok) return;
 
-    // Descarta da fila os lances dessa partida que ainda não tinham sido sincronizados
+    // Descarta da fila os lances e (se houver) a criação pendente dessa partida
     eventQueue = eventQueue.filter(e => e.partida_id !== currentMatchId);
     persistEventQueue();
+    pendingPartidas = pendingPartidas.filter(p => p.localId !== currentMatchId);
+    persistPendingPartidas();
 
-    await _supabase.from('eventos').delete().eq('partida_id', currentMatchId);
-    await _supabase.from('partidas').delete().eq('id', currentMatchId);
+    // Só existe algo pra apagar no servidor se essa partida chegou a ser criada de verdade
+    if (!isLocalId(currentMatchId)) {
+        await _supabase.from('eventos').delete().eq('partida_id', currentMatchId);
+        await _supabase.from('partidas').delete().eq('id', currentMatchId);
+    }
 
     currentMatchId = null;
     currentMatchName = "";
@@ -1907,14 +2030,16 @@ async function loadMatchHistory(u) {
 async function endMatch() {
     const ok = await confirmDialog("Deseja encerrar a partida e salvar no histórico? Você pode baixar a planilha depois, pelo Histórico.", { confirmText: 'Encerrar partida' });
     if(ok) {
-        const matchIdBeingClosed = currentMatchId;
+        let idBeingClosed = currentMatchId;
+        const stillPendingFor = (id) => pendingPartidas.some(p => p.localId === id) || eventQueue.some(e => e.partida_id === id);
 
-        // Dá algumas chances rápidas de terminar de sincronizar os últimos lances antes de sair da tela
-        for (let i = 0; i < 5 && eventQueue.some(e => e.partida_id === matchIdBeingClosed); i++) {
-            await flushEventQueue();
-            if (eventQueue.some(e => e.partida_id === matchIdBeingClosed)) await new Promise(r => setTimeout(r, 600));
+        // Dá algumas chances rápidas de terminar de sincronizar a partida + últimos lances antes de sair da tela
+        for (let i = 0; i < 5 && stillPendingFor(idBeingClosed); i++) {
+            await trySyncAll();
+            idBeingClosed = matchIdMap[idBeingClosed] || idBeingClosed; // acompanha se o ID local virou real no meio do processo
+            if (stillPendingFor(idBeingClosed)) await new Promise(r => setTimeout(r, 600));
         }
-        const stillPending = eventQueue.some(e => e.partida_id === matchIdBeingClosed);
+        const stillPending = stillPendingFor(idBeingClosed);
 
         currentMatchId = null;
         currentMatchName = "";
@@ -1926,7 +2051,9 @@ async function endMatch() {
         document.querySelectorAll('.match-player-cb:checked').forEach(cb => cb.checked = false);
 
         showPage('profile');
-        if (stillPending) {
+        if (stillPending && !navigator.onLine) {
+            toast("Partida salva localmente! Sem internet agora — ela vai sincronizar sozinha assim que a conexão voltar (pode deixar o site aberto em segundo plano).", "info");
+        } else if (stillPending) {
             toast("Partida salva! Alguns lances ainda estão sincronizando em segundo plano — evite fechar o site por alguns segundos.", "info");
         } else {
             toast("Partida salva! Verifique o Histórico no seu Dashboard.", "success");
