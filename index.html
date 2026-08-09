@@ -340,6 +340,9 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: var(--glow
     padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--primary); text-align: center; font-weight: bold;
     transition: box-shadow .2s;
 }
+.sync-indicator { font-size: 10px; text-align: center; margin-top: 6px; font-weight: 700; letter-spacing: .3px; }
+.sync-indicator.sync-ok { color: var(--primary); }
+.sync-indicator.sync-pending { color: var(--accent-gold); }
 .event-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
 .event-grid .btn { border-color: var(--info); color: var(--info); }
 .event-grid .btn.err { border-color: var(--danger); color: var(--danger); }
@@ -749,6 +752,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                 <div id="live-feedback" class="live-feedback-box">
                     Selecione um jogador para avaliar...
                 </div>
+                <p id="sync-indicator" class="sync-indicator sync-ok">✓ Todos os lances sincronizados</p>
 
                 <div id="event-buttons-container"></div>
                 <div class="btn-row" style="margin-top:20px;">
@@ -923,6 +927,64 @@ let currentMatchName = "";
 let liveMatchStats = {}; 
 let focusPlayer = null; // atleta atualmente selecionado nos chips de troca rápida
 let historyRequestId = 0; // usado para descartar respostas de histórico que chegam atrasadas
+
+// ---------- Fila local de eventos (outbox) ----------
+// Antes, cada lance clicado disparava um INSERT isolado pro Supabase — muitas viagens de rede
+// numa partida com centenas de lances, e se uma delas falhasse (rede instável, sinal ruim no
+// ginásio), o lance simplesmente se perdia sem aviso. Agora os lances entram numa fila em memória
+// + localStorage e são enviados em lote; se uma tentativa falhar, continuam na fila e são
+// reenviados automaticamente, inclusive depois de um recarregamento da página.
+let eventQueue = [];
+let isFlushingQueue = false;
+const FLUSH_BATCH_SIZE = 8;
+const PENDING_EVENTS_KEY = 'vstats_pending_events';
+
+function loadPendingQueueFromStorage() {
+    try { eventQueue = JSON.parse(localStorage.getItem(PENDING_EVENTS_KEY)) || []; }
+    catch (e) { eventQueue = []; }
+}
+function persistEventQueue() {
+    if (eventQueue.length === 0) localStorage.removeItem(PENDING_EVENTS_KEY);
+    else localStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(eventQueue));
+}
+
+function updateSyncIndicator() {
+    const el = document.getElementById('sync-indicator');
+    if (!el) return;
+    if (eventQueue.length === 0) {
+        el.textContent = '✓ Todos os lances sincronizados';
+        el.className = 'sync-indicator sync-ok';
+    } else {
+        el.textContent = `⏳ ${eventQueue.length} lance(s) sincronizando...`;
+        el.className = 'sync-indicator sync-pending';
+    }
+}
+
+// Envia até FLUSH_BATCH_SIZE lances de uma vez (1 requisição em vez de várias). Se falhar,
+// os lances continuam na fila — a próxima tentativa (pelo timer ou pelo próximo clique) reenvia.
+async function flushEventQueue() {
+    if (isFlushingQueue || eventQueue.length === 0) return;
+    isFlushingQueue = true;
+    const batch = eventQueue.slice(0, FLUSH_BATCH_SIZE);
+
+    const { error } = await _supabase.from('eventos').insert(batch);
+
+    if (!error) {
+        eventQueue = eventQueue.slice(batch.length);
+        persistEventQueue();
+        updateSyncIndicator();
+        isFlushingQueue = false;
+        if (eventQueue.length > 0) flushEventQueue(); // ainda tem mais lote(s) esperando, continua
+    } else {
+        console.warn('Falha ao sincronizar lances (tentando de novo em instantes):', error.message);
+        isFlushingQueue = false;
+        updateSyncIndicator();
+    }
+}
+
+// Rede de segurança: tenta sincronizar sozinho a cada poucos segundos, mesmo sem novo lance sendo lançado
+setInterval(() => { if (eventQueue.length > 0) flushEventQueue(); }, 4000);
+loadPendingQueueFromStorage(); // recupera lances que ficaram pendentes de uma sessão anterior (ex: página recarregada)
 
 // Função central de cálculo de stats/OVR (evita repetir a mesma fórmula em displayCard, renderSearch e renderRanking)
 function computeOverall(u) {
@@ -1539,6 +1601,7 @@ async function startMatch() {
     document.getElementById('pre-match-area').classList.add('hidden');
     document.getElementById('match-area').classList.remove('hidden');
     updateLiveFeedback();
+    updateSyncIndicator();
 }
 
 // Chips de troca rápida do jogador foco — um toque troca, sem precisar abrir um menu suspenso
@@ -1564,7 +1627,7 @@ function updateLiveFeedback() {
         Contra: ${s.CONTRA} • Ataque: ${s.ATAQUE} • Defesa: ${s.DEFESA}`;
 }
 
-async function registerEvent(fundamento, resultado) {
+function registerEvent(fundamento, resultado) {
     if(!currentMatchId) return toast("Inicie uma partida", "error");
     const atleta = focusPlayer;
     if(!atleta) return toast("Selecione um atleta foco primeiro.", "error");
@@ -1572,8 +1635,13 @@ async function registerEvent(fundamento, resultado) {
     liveMatchStats[atleta][fundamento]++;
     updateLiveFeedback();
 
-    const { error } = await _supabase.from('eventos').insert([{ partida_id: currentMatchId, atleta: atleta, fundamento: fundamento, resultado: resultado }]);
-    if(error) { console.error("Falha ao salvar evento no DB"); toast("Falha ao salvar esse lance — verifique sua conexão.", "error"); }
+    // Entra na fila em vez de inserir na hora — mais rápido pro treinador (não espera rede)
+    // e mais seguro (o lance não se perde se a internet falhar por um instante)
+    eventQueue.push({ partida_id: currentMatchId, atleta, fundamento, resultado, criado_em: new Date().toISOString() });
+    persistEventQueue();
+    updateSyncIndicator();
+
+    if (eventQueue.length >= FLUSH_BATCH_SIZE) flushEventQueue();
 }
 
 // Cancela a partida atual: apaga os eventos já lançados e a própria partida, sem gerar planilha
@@ -1581,6 +1649,10 @@ async function cancelMatch() {
     if(!currentMatchId) return;
     const ok = await confirmDialog("Cancelar esta partida? Todos os lançamentos feitos até agora serão apagados e nada será salvo.", { confirmText: 'Cancelar partida', cancelText: 'Voltar', danger: true });
     if(!ok) return;
+
+    // Descarta da fila os lances dessa partida que ainda não tinham sido sincronizados
+    eventQueue = eventQueue.filter(e => e.partida_id !== currentMatchId);
+    persistEventQueue();
 
     await _supabase.from('eventos').delete().eq('partida_id', currentMatchId);
     await _supabase.from('partidas').delete().eq('id', currentMatchId);
@@ -1835,6 +1907,15 @@ async function loadMatchHistory(u) {
 async function endMatch() {
     const ok = await confirmDialog("Deseja encerrar a partida e salvar no histórico? Você pode baixar a planilha depois, pelo Histórico.", { confirmText: 'Encerrar partida' });
     if(ok) {
+        const matchIdBeingClosed = currentMatchId;
+
+        // Dá algumas chances rápidas de terminar de sincronizar os últimos lances antes de sair da tela
+        for (let i = 0; i < 5 && eventQueue.some(e => e.partida_id === matchIdBeingClosed); i++) {
+            await flushEventQueue();
+            if (eventQueue.some(e => e.partida_id === matchIdBeingClosed)) await new Promise(r => setTimeout(r, 600));
+        }
+        const stillPending = eventQueue.some(e => e.partida_id === matchIdBeingClosed);
+
         currentMatchId = null;
         currentMatchName = "";
         liveMatchStats = {};
@@ -1845,7 +1926,11 @@ async function endMatch() {
         document.querySelectorAll('.match-player-cb:checked').forEach(cb => cb.checked = false);
 
         showPage('profile');
-        toast("Partida salva! Verifique o Histórico no seu Dashboard.", "success");
+        if (stillPending) {
+            toast("Partida salva! Alguns lances ainda estão sincronizando em segundo plano — evite fechar o site por alguns segundos.", "info");
+        } else {
+            toast("Partida salva! Verifique o Histórico no seu Dashboard.", "success");
+        }
     }
 }
 
