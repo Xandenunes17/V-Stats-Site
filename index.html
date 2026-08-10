@@ -125,6 +125,7 @@ nav .court-divider { margin-top: 16px; }
 .hero-subtitle { font-size: 14px; color: var(--text-dim); margin-bottom: 30px; line-height: 1.5; }
 .auth-subtitle { font-size: 15px; margin-bottom: 16px; color: var(--white); font-weight: 600; }
 .auth-toggle { text-align: center; margin-top: 20px; cursor: pointer; font-size: 13px; color: var(--text-dim); transition: color .25s; }
+.field-hint { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-top: 6px; }
 .auth-toggle:hover { color: var(--text-light); }
 .auth-toggle-cta { color: var(--primary); font-weight: bold; }
 
@@ -584,10 +585,6 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
         
         <div id="register-fields" class="hidden">
             <input type="email" id="reg-email" placeholder="E-mail (Opcional)" autocomplete="email">
-            <select id="reg-role">
-                <option value="atleta">Conta: Atleta</option>
-                <option value="treinador">Conta: Treinador</option>
-            </select>
             <select id="reg-pos-init">
                 <option value="Levantador">Levantador</option>
                 <option value="Oposto">Oposto</option>
@@ -595,6 +592,7 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                 <option value="Central">Central</option>
                 <option value="Líbero">Líbero</option>
             </select>
+            <p class="field-hint">Toda conta nova começa como Atleta. Pra virar Treinador, é só solicitar depois pelo seu perfil — um administrador aprova.</p>
         </div>
         
         <button class="btn btn-solid" style="margin-top:20px" onclick="handleAuth()">Acessar Dashboard</button>
@@ -725,6 +723,10 @@ input, select { font-size: 16px; } /* evita zoom automático do iOS ao focar em 
                 <div id="match-history-area" class="card-section">
                     <h3 class="section-title">📜 Histórico de Partidas</h3>
                     <div id="history-list" class="history-list"></div>
+                </div>
+
+                <div class="card-section">
+                    <button id="btn-request-coach" class="btn btn-ghost hidden" onclick="requestCoachAccess()">🎯 Solicitar acesso de Treinador</button>
                 </div>
 
                 <div id="admin-requests-area" class="card-section hidden">
@@ -873,6 +875,8 @@ if ('serviceWorker' in navigator) {
 // O papel "admin" só existe se for definido direto no banco (Supabase) — o app nunca cria
 // nem oferece essa opção em nenhum formulário, então não tem como alguém virar admin pela UI.
 function isAdmin() { return !!(currentUserData && currentUserData.role === 'admin'); }
+// Admin tem acesso a tudo, incluindo o painel do treinador — não fica de fora de nenhuma função do site.
+function canCoach() { return !!(currentUserData && (currentUserData.role === 'treinador' || isAdmin())); }
 
 function isLightTheme() { return document.body.classList.contains('light-theme'); }
 // Chart.js desenha em canvas e não entende var(--...) do CSS, então os gráficos precisam
@@ -1041,8 +1045,8 @@ async function loadAdminRequests() {
     }
 
     listEl.innerHTML = data.map(r => {
-        const icon = r.tipo === 'time' ? '🏐' : '📍';
-        const detail = r.tipo === 'time' ? (r.cidade || 'sem cidade informada') : 'nova cidade';
+        const icon = r.tipo === 'time' ? '🏐' : r.tipo === 'cidade' ? '📍' : '🎯';
+        const detail = r.tipo === 'time' ? (r.cidade || 'sem cidade informada') : r.tipo === 'cidade' ? 'nova cidade' : 'quer acesso de treinador';
         return `
         <div class="athlete-item" style="cursor:default;">
             <div class="athlete-info">
@@ -1067,15 +1071,18 @@ async function approveRequest(id) {
     let error;
     if (req.tipo === 'time') {
         ({ error } = await _supabase.from('times').insert([{ nome: req.nome, cidade: req.cidade, logo_url: req.logo_url, banner_url: req.banner_url }]));
-    } else {
+    } else if (req.tipo === 'cidade') {
         ({ error } = await _supabase.from('cidades').insert([{ nome: req.nome, bandeira_url: req.bandeira_url }]));
+    } else if (req.tipo === 'treinador') {
+        ({ error } = await _supabase.from('atletas').update({ role: 'treinador' }).eq('nick', req.solicitante));
     }
     if (error) return toast("Erro ao aprovar: " + error.message, "error");
 
     await _supabase.from('solicitacoes').update({ status: 'aprovada' }).eq('id', id);
-    await loadTeamsAndCities();
+    if (req.tipo !== 'treinador') await loadTeamsAndCities();
     await loadAdminRequests();
-    toast(`${req.tipo === 'time' ? 'Time' : 'Cidade'} aprovado(a)!`, "success");
+    const label = req.tipo === 'time' ? 'Time' : req.tipo === 'cidade' ? 'Cidade' : 'Acesso de treinador';
+    toast(`${label} aprovado(a)!`, "success");
 }
 
 async function rejectRequest(id) {
@@ -1085,6 +1092,21 @@ async function rejectRequest(id) {
     await _supabase.from('solicitacoes').update({ status: 'rejeitada' }).eq('id', id);
     await loadAdminRequests();
     toast("Solicitação rejeitada.", "info");
+}
+
+// Qualquer atleta pode solicitar acesso de treinador — vira 'treinador' só quando um admin aprova
+async function requestCoachAccess() {
+    if (!currentUserData || currentUserData.role !== 'atleta') return;
+
+    const { data: existing } = await _supabase.from('solicitacoes').select('id').eq('tipo', 'treinador').eq('solicitante', currentUserData.nick).eq('status', 'pendente').maybeSingle();
+    if (existing) return toast("Você já tem uma solicitação de treinador pendente — aguarde a análise.", "info");
+
+    const ok = await confirmDialog("Solicitar acesso de Treinador? Um administrador vai revisar o pedido.", { confirmText: 'Solicitar' });
+    if (!ok) return;
+
+    const { error } = await _supabase.from('solicitacoes').insert([{ tipo: 'treinador', nome: currentUserData.nick, solicitante: currentUserData.nick }]);
+    if (error) return toast("Erro ao enviar solicitação: " + error.message, "error");
+    toast("Solicitação enviada! Um administrador vai revisar em breve.", "success");
 }
 
 // Sistema de pontuação das estrelas: antes cada estrela valia *20 (só 20/40/60/80/100,
@@ -1452,9 +1474,8 @@ async function handleAuth() {
         if(existing) return toast("Esse apelido já está em uso. Escolha outro.", "error");
 
         const hashed = dcodeIO.bcrypt.hashSync(pass, 10);
-        const role = document.getElementById('reg-role').value;
         const { data, error } = await _supabase.from('atletas').insert([{ 
-            nick, pass: hashed, email: document.getElementById('reg-email').value, role: role,
+            nick, pass: hashed, email: document.getElementById('reg-email').value, role: 'atleta',
             pos: document.getElementById('reg-pos-init').value, 
             city: "Brasil", team: "Livre", photo: "", stats: {ATA:50,LEV:50,BLO:50,DEF:50,PAS:50,SAQ:50}, ratings: {} 
         }]).select();
@@ -1625,6 +1646,9 @@ function displayCard(u) {
     const adminArea = document.getElementById('admin-requests-area');
     if (isOwner && isAdmin()) loadAdminRequests();
     else if (adminArea) adminArea.classList.add('hidden');
+
+    const btnReqCoach = document.getElementById('btn-request-coach');
+    if (btnReqCoach) btnReqCoach.classList.toggle('hidden', !(isOwner && u.role === 'atleta'));
 }
 
 function initChart(data, baseColor) {
@@ -1891,7 +1915,7 @@ async function loadPlayersForMatch() {
 }
 
 async function startMatch() {
-    if(!currentUserData || currentUserData.role !== 'treinador') return toast("Apenas treinadores podem usar isso.", "error");
+    if(!canCoach()) return toast("Apenas treinadores (ou admins) podem usar isso.", "error");
     
     const mName = document.getElementById('match-name').value.trim();
     if(!mName) return toast("Por favor, digite um nome para a partida.", "error");
@@ -2528,8 +2552,8 @@ async function loadTeamPage(teamName) {
 }
 
 function showPage(p) {
-    if(p === 'game' && currentUserData && currentUserData.role !== 'treinador') {
-        toast("Acesso restrito! Somente contas do tipo 'Treinador' podem acessar a criação de partidas.", "error");
+    if(p === 'game' && currentUserData && !canCoach()) {
+        toast("Acesso restrito! Somente contas do tipo 'Treinador' (ou admins) podem acessar a criação de partidas.", "error");
         return;
     }
 
