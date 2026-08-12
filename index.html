@@ -1343,9 +1343,32 @@ function computeOverall(u) {
     return { s, ovr };
 }
 
-window.onload = () => {
-    const savedUser = localStorage.getItem('vstats_user');
-    if (savedUser) { currentUserData = JSON.parse(savedUser); enterApp(); }
+window.onload = async () => {
+    let loadedFromServer = false;
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) {
+            const { data, error } = await _supabase.from('atletas').select('*').eq('auth_id', session.user.id).maybeSingle();
+            if (!error && data) {
+                currentUserData = data;
+                persistUser(currentUserData);
+                enterApp();
+                loadedFromServer = true;
+            }
+        }
+    } catch (e) {
+        console.warn('Não foi possível confirmar a sessão com o servidor, tentando cache local:', e.message || e);
+    }
+
+    // Sem sessão confirmável agora (offline, instabilidade etc.) — usa o que ficou salvo
+    // localmente da última vez, só pra não travar o treinador em campo sem internet.
+    if (!loadedFromServer) {
+        const cached = localStorage.getItem('vstats_user');
+        if (cached) {
+            try { currentUserData = JSON.parse(cached); enterApp(); }
+            catch (e) { /* cache corrompido, ignora e deixa na tela de login */ }
+        }
+    }
 };
 
 const filterPlayersForMatch = debounce(() => {
@@ -1464,37 +1487,55 @@ function persistUser(u) {
     return safeUser;
 }
 
+// E-mail sintético a partir do nick — mantém o login "por apelido" que já existia,
+// mas por baixo dos panos usa o supabase.auth de verdade (que exige um e-mail).
+function nickToEmail(nick) { return `${nick}@vstats.internal`; }
+
 async function handleAuth() {
     const nick = document.getElementById('auth-nick').value.trim().toLowerCase();
     const pass = document.getElementById('auth-pass').value.trim();
     if(!nick || !pass) return toast("Preencha as credenciais.", "error");
 
+    const syntheticEmail = nickToEmail(nick);
+
     if(isRegisterMode) {
         const { data: existing } = await _supabase.from('atletas').select('nick').eq('nick', nick).maybeSingle();
         if(existing) return toast("Esse apelido já está em uso. Escolha outro.", "error");
 
-        const hashed = dcodeIO.bcrypt.hashSync(pass, 10);
+        const { data: authData, error: authError } = await _supabase.auth.signUp({ email: syntheticEmail, password: pass });
+        if (authError) return toast("Erro ao criar conta: " + authError.message, "error");
+        if (!authData.session) return toast("Conta criada, mas a confirmação de e-mail está ativada no projeto Supabase — desative em Authentication > Providers > Email pra liberar o login.", "error");
+
         const { data, error } = await _supabase.from('atletas').insert([{ 
-            nick, pass: hashed, email: document.getElementById('reg-email').value, role: 'atleta',
+            nick, auth_id: authData.user.id, email: document.getElementById('reg-email').value, role: 'atleta',
             pos: document.getElementById('reg-pos-init').value, 
             city: "Brasil", team: "Livre", photo: "", stats: {ATA:50,LEV:50,BLO:50,DEF:50,PAS:50,SAQ:50}, ratings: {} 
         }]).select();
         if(error) return toast("Erro no sistema: " + error.message, "error");
         currentUserData = data[0];
     } else {
+        const { error: signInError } = await _supabase.auth.signInWithPassword({ email: syntheticEmail, password: pass });
+
+        if (signInError) {
+            // Login direto falhou — pode ser uma conta de antes dessa migração, ainda não
+            // vinculada ao supabase.auth. Confere a senha do jeito antigo e, se bater,
+            // cria a conta real agora mesmo, sem o usuário perceber nada disso.
+            const { data: legacy } = await _supabase.from('atletas').select('*').eq('nick', nick).is('auth_id', null).maybeSingle();
+            const isBcrypt = legacy && typeof legacy.pass === 'string' && legacy.pass.startsWith('$2');
+            const legacyMatches = legacy && (isBcrypt ? dcodeIO.bcrypt.compareSync(pass, legacy.pass) : legacy.pass === pass);
+
+            if (!legacyMatches) return toast("Credenciais inválidas!", "error");
+
+            const { data: authData, error: authError } = await _supabase.auth.signUp({ email: syntheticEmail, password: pass });
+            if (authError) return toast("Erro ao migrar sua conta: " + authError.message, "error");
+            if (!authData.session) return toast("Conta confirmada, mas a confirmação de e-mail está ativada no projeto Supabase — desative em Authentication > Providers > Email.", "error");
+
+            const { error: claimError } = await _supabase.rpc('claim_legacy_account', { p_nick: nick });
+            if (claimError) return toast("Erro ao migrar sua conta: " + claimError.message, "error");
+        }
+
         const { data } = await _supabase.from('atletas').select('*').eq('nick', nick).single();
         if(!data) return toast("Credenciais inválidas!", "error");
-
-        const isHashed = typeof data.pass === 'string' && data.pass.startsWith('$2');
-        if(isHashed) {
-            if(!dcodeIO.bcrypt.compareSync(pass, data.pass)) return toast("Credenciais inválidas!", "error");
-        } else {
-            // Conta antiga, senha ainda em texto puro — confere direto e migra pra hash na hora, sem o usuário perceber
-            if(data.pass !== pass) return toast("Credenciais inválidas!", "error");
-            const hashed = dcodeIO.bcrypt.hashSync(pass, 10);
-            await _supabase.from('atletas').update({ pass: hashed }).eq('nick', nick);
-            data.pass = hashed;
-        }
         currentUserData = data;
     }
     persistUser(currentUserData);
@@ -1566,14 +1607,13 @@ async function saveProfileUpdates() {
 
 async function rateStat(statKey, stars) {
     if(!viewedUserData || viewedUserData.nick === currentUserData.nick) return;
-    const points = STAR_POINTS[stars]; const voterNick = currentUserData.nick; 
-    let ratings = viewedUserData.ratings || {};
-    if (!ratings[statKey]) ratings[statKey] = {};
-    ratings[statKey][voterNick] = points;
-    const { error } = await _supabase.from('atletas').update({ ratings: ratings }).eq('nick', viewedUserData.nick);
+    const points = STAR_POINTS[stars];
+    const { error } = await _supabase.rpc('rate_stat', { p_avaliado_nick: viewedUserData.nick, p_stat_key: statKey, p_pontos: points });
     if(!error) {
         const { data } = await _supabase.from('atletas').select('*').eq('nick', viewedUserData.nick).single();
         displayCard(data);
+    } else {
+        toast("Não foi possível registrar a avaliação: " + error.message, "error");
     }
 }
 
@@ -2579,7 +2619,11 @@ async function enterApp() {
     showPage('profile'); 
 }
 
-function logout() { localStorage.removeItem('vstats_user'); location.reload(); }
+async function logout() {
+    await _supabase.auth.signOut();
+    localStorage.removeItem('vstats_user');
+    location.reload();
+}
 
 </script>
 
