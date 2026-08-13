@@ -1323,15 +1323,24 @@ updateOfflineBanner(); // estado inicial (a página pode já abrir offline, ex: 
 // Função central de cálculo de stats/OVR (evita repetir a mesma fórmula em displayCard, renderSearch e renderRanking)
 function computeOverall(u) {
     let sum = 0; const s = {};
+    // Peso do valor-base, em "avaliações equivalentes". Antes a média da comunidade tinha peso
+    // fixo de 3/4 pra sempre, então mesmo com nota perfeita de todo mundo o resultado nunca
+    // passava de (50 + 100*3)/4 = 87.5. Agora o valor-base conta como só BASE_WEIGHT votos
+    // neutros — com poucas avaliações ele ainda segura a nota perto do centro, mas conforme mais
+    // gente avalia o peso dele desaparece, e a pontuação passa a refletir de verdade o consenso
+    // (podendo chegar a 100 se for isso que a comunidade está dizendo).
+    const BASE_WEIGHT = 2;
     STAT_KEYS.forEach(k => {
-        let val = (u.stats && u.stats[k]) || 50;
+        let baseVal = (u.stats && u.stats[k]) || 50;
+        let val = baseVal;
         let avgStars = 0, voteCount = 0;
         if (u.ratings && u.ratings[k]) {
             const votos = Object.values(u.ratings[k]);
             voteCount = votos.length;
             if (voteCount > 0) {
-                const media = votos.reduce((a, b) => a + b, 0) / voteCount;
-                val = (val + (media * 3)) / 4;
+                const soma = votos.reduce((a, b) => a + b, 0);
+                const media = soma / voteCount;
+                val = (baseVal * BASE_WEIGHT + soma) / (BASE_WEIGHT + voteCount);
                 avgStars = pointsToStars(media);
             }
         }
